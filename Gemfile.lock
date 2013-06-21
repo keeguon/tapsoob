@@ -1,0 +1,22 @@
+PATH
+  remote: .
+  specs:
+    tapsoob (0.0.1)
+      sequel (~> 3.45.0)
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    mysql (2.9.1)
+    mysql2 (0.3.11)
+    pg (0.14.1)
+    sequel (3.45.0)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  mysql (~> 2.9.1)
+  mysql2 (~> 0.3.11)
+  pg (~> 0.14.1)
+  tapsoob!
