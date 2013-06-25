@@ -48,7 +48,7 @@ module Tapsoob
     end
 
     def string_columns
-      @string_columns ||= Taps::Utils.incorrect_blobs(db, table_name)
+      @string_columns ||= Tapsoob::Utils.incorrect_blobs(db, table_name)
     end
 
     def table
@@ -58,7 +58,7 @@ module Tapsoob
     def order_by(name=nil)
       @order_by ||= begin
         name ||= table_name
-        Taps::Utils.order_by(db, name)
+        Tapsoob::Utils.order_by(db, name)
       end
     end
 
@@ -70,9 +70,9 @@ module Tapsoob
     # goes below 100 or maybe if offset is > 1000
     def fetch_rows
       state[:chunksize] = fetch_chunksize
-      ds = table.order(*order_by).limit(state[:chunksize], state[:offset])
+      ds = table.order(*order_by).limit(state[:chunksize], state[:total_chunksize])
       log.debug "DataStream#fetch_rows SQL -> #{ds.sql}"
-      rows = Taps::Utils.format_data(ds.all,
+      rows = Tapsoob::Utils.format_data(ds.all,
         :string_columns => string_columns,
         :schema => db.schema(table_name),
         :table => table_name
@@ -101,7 +101,7 @@ module Tapsoob
     end
 
     def encode_rows(rows)
-      Taps::Utils.base64encode(Marshal.dump(rows))
+      Tapsoob::Utils.base64encode(Marshal.dump(rows))
     end
 
     def fetch
@@ -129,10 +129,10 @@ module Tapsoob
     end
 
     def parse_encoded_data(encoded_data, checksum)
-      raise Taps::CorruptedData.new("Checksum Failed") unless Taps::Utils.valid_data?(encoded_data, checksum)
+      raise Tapsoob::CorruptedData.new("Checksum Failed") unless Tapsoob::Utils.valid_data?(encoded_data, checksum)
 
       begin
-        return Marshal.load(Taps::Utils.base64decode(encoded_data))
+        return Marshal.load(Tapsoob::Utils.base64decode(encoded_data))
       rescue Object => e
         unless ENV['NO_DUMP_MARSHAL_ERRORS']
           puts "Error encountered loading data, wrote the data chunk to dump.#{Process.pid}.dat"
@@ -155,7 +155,7 @@ module Tapsoob
         return eval(state[:klass]).new(db, state)
       end
 
-      if Taps::Utils.single_integer_primary_key(db, state[:table_name].to_sym)
+      if Tapsoob::Utils.single_integer_primary_key(db, state[:table_name].to_sym)
         DataStreamKeyed.new(db, state)
       else
         DataStream.new(db, state)

@@ -10,7 +10,7 @@ module Tapsoob
     def windows?
       return @windows if defined?(@windows)
       require 'rbconfig'
-      @windows = !!(::Config::CONFIG['host_os'] =~ /mswin|mingw/)
+      @windows = !!(::RbConfig::CONFIG['host_os'] =~ /mswin|mingw/)
     end
 
     def bin(cmd)
@@ -66,7 +66,6 @@ Data : #{data}
         header.collect { |h| row[h] }
       end
       { :header => header, :data => only_data }
-      header.collect { |h| row[h] }
     end
 
     # mysql text and blobs fields are handled the same way internally
@@ -111,11 +110,27 @@ Data : #{data}
       c.calc_new_chunksize
     end
 
-    def load_schema(database_url, schema_data)
-      Tempfile.open('taps') do |tmp|
-        File.open(tmp.path, 'w') { |f| f.write(schema_data) }
-        schema_bin(:load, database_url, tmp.path)
+    def export_schema(dump_path, table, schema_data)
+      File.open(File.join(dump_path, "schemas", "#{table}.rb"), 'w') do |file|
+        file.write(schema_data)
       end
+    end
+
+    def export_indexes(dump_path, table, index_data)
+      File.open(File.join(dump_path, "indexes", "#{table}.rb"), 'w') do |file|
+        file.write(index_data)
+      end
+    end
+
+    def export_rows(dump_path, table, row_data)
+      File.open(File.join(dump_path, "data", "#{table}"), 'a') do |file|
+        file.write(row_data)
+      end
+    end
+
+    def schema_bin(*args)
+      bin_path = File.expand_path("#{File.dirname(__FILE__)}/../../bin/#{bin('schema')}")
+      `"#{bin_path}" #{args.map { |a| "'#{a}'" }.join(' ')}`
     end
 
     def primary_key(db, table)

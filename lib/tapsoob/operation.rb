@@ -6,10 +6,11 @@ require 'tapsoob/data_stream'
 
 module Tapsoob
   class Operation
-    attr_reader :database_url, :opts
+    attr_reader :database_url, :dump_path, :opts
 
-    def initialize(database_url, opts={})
+    def initialize(database_url, dump_path, opts={})
       @database_url = database_url
+      @dump_path    = dump_path
       @opts         = opts
       @exiting      = false
     end
@@ -53,6 +54,14 @@ module Tapsoob
 
     def log
       Tapsoob.log
+    end
+
+    def store_session
+      file = "#{file_prefix}_#{Time.now.strftime("%Y%m%d%H%M")}.dat"
+      puts "\nSaving session to #{file}..."
+      File.open(file, 'w') do |f|
+        f.write(JSON.generate(to_hash))
+      end
     end
 
     def to_hash
@@ -117,7 +126,7 @@ module Tapsoob
       end
     end
 
-    def self.factory(type, database_url, opts)
+    def self.factory(type, database_url, dump_path, opts)
       type = :resume if opts[:resume]
       klass = case type
         when :pull   then Tapsoob::Pull
@@ -126,7 +135,7 @@ module Tapsoob
         else raise "Unknown Operation Type -> #{type}"
       end
 
-      klass.new(database_url, opts)
+      klass.new(database_url, dump_path, opts)
     end
   end
 
@@ -160,7 +169,8 @@ module Tapsoob
       tables.each do |table_name, count|
         schema_data = Tapsoob::Schema.dump_table(database_url, table_name)
         log.debug "Table: #{table_name}\n#{schema_data}\n"
-        log.debug schema_data
+        output = Tapsoob::Utils.export_schema(dump_path, table_name, schema_data)
+        puts output if output
         progress.inc(1)
       end
       progress.finish
@@ -173,7 +183,7 @@ module Tapsoob
 
       tables.each do |table_name, count|
         progress = ProgressBar.new(table_name.to_s, count)
-        stream   = Taps::DataStream.factory(db, {
+        stream   = Tapsoob::DataStream.factory(db, {
           :chunksize  => default_chunksize,
           :table_name => table_name
         })
@@ -181,17 +191,31 @@ module Tapsoob
       end
     end
 
+    def pull_partial_data
+      return if stream_state == {}
+
+      table_name = stream_state[:table_name]
+      record_count = tables[table_name.to_s]
+      puts "Resuming #{table_name}, #{format_number(record_count)} records"
+
+      progress = ProgressBar.new(table_name.to_s, record_count)
+      stream = Taps::DataStream.factory(db, stream_state)
+      pull_data_from_table(stream, progress)
+    end
+
     def pull_data_from_table(stream, progress)
       loop do
         begin
           exit 0 if exiting?
 
-          size = stream.fetch
+          data = stream.fetch
+          output = Tapsoob::Utils.export_rows(dump_path, stream.table_name, data[0])
+          puts output if output
           break if stream.complete?
-          progress.inc(size) unless exiting?
+          progress.inc(stream.state[:total_chunksize]) unless exiting?
           stream.error = false
           self.stream_state = stream.to_hash
-        rescue Tapsoob::CorruptedDate => e
+        rescue Tapsoob::CorruptedData => e
           puts "Corrupted Data Received #{e.message}, retrying..."
           stream.error = true
           next
@@ -210,6 +234,10 @@ module Tapsoob
         h[table_name.to_s] = count
       end
       h
+    end
+
+    def record_count
+      tables_info.values.inject(:+)
     end
 
     def tables_info
@@ -241,6 +269,33 @@ module Tapsoob
         DataStream.new(db, state)
       end
     end
+
+    def pull_indexes
+      puts "Receiving indexes"
+
+      idxs = JSON.parse(Tapsoob::Utils.schema_bin(:indexes_individual, database_url))
+
+      apply_table_filter(idxs).each do |table, indexes|
+        next unless indexes.size > 0
+        progress = ProgressBar.new(table, indexes.size)
+        indexes.each do |idx|
+          output = Tapsoob::Utils.export_indexes(dump_path, table, idx)
+          puts output if output
+          progress.inc(1)
+        end
+        progress.finish
+      end
+    end
+
+    def pull_reset_sequences
+      puts "Resetting sequences"
+
+      output = Tapsoob::Utils.schema_bin(:reset_db_sequences, database_url)
+      puts output if output
+    end
+  end
+
+  class Push < Operation
   end
 
   class DataStreamKeyed < DataStream
