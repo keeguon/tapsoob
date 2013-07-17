@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.version     = Tapsoob::VERSION.dup
   s.platform    = Gem::Platform::RUBY
   s.authors     = ["Félix Bellanger"]
-  s.email       = "felix.bellanger@gmail.com"
+  s.email       = "felix.bellanger@faveod.com"
   s.homepage    = "https://github.com/Keeguon/tapsoob"
   s.summary     = "Simple tool to import/export databases."
   s.description = "Simple tool to import/export databases inspired by taps but OOB, meaning databases are imported/exported from the filesystem."

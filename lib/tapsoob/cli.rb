@@ -7,7 +7,7 @@ require 'tapsoob/log'
 Tapsoob::Config.tapsoob_database_url = ENV['TAPSOOB_DATABASE_URL'] || begin
   # this is dirty but it solves a weird problem where the tempfile disappears mid-process
   require 'sqlite3'
-  $__taps_database = Tempfile.new('taps.db')
+  $__taps_database = Tempfile.new('tapsoob.db')
   $__taps_database.open()
   "sqlite://#{$__taps_database.path}"
 end

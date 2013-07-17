@@ -2,6 +2,7 @@ require 'zlib'
 
 require 'tapsoob/errors'
 require 'tapsoob/chunksize'
+require 'tapsoob/schema'
 
 module Tapsoob
   module Utils
@@ -91,12 +92,12 @@ Data : #{data}
     end
 
     def calculate_chunksize(old_chunksize)
-      c = Taps::Chunksize.new(old_chunksize)
+      c = Tapsoob::Chunksize.new(old_chunksize)
 
       begin
         c.start_time = Time.now
         c.time_in_db = yield c
-      rescue Errno::EPIPE, RestClient::RequestFailed, RestClient::RequestTimeout
+      rescue Errno::EPIPE
         c.retries += 1
         raise if c.retries > 2
 
@@ -117,15 +118,36 @@ Data : #{data}
     end
 
     def export_indexes(dump_path, table, index_data)
-      File.open(File.join(dump_path, "indexes", "#{table}.rb"), 'w') do |file|
-        file.write(index_data)
+      data = [index_data]
+      if File.exists?(File.join(dump_path, "indexes", "#{table}.json"))
+        previous_data = JSON.parse(File.read(File.join(dump_path, "indexes", "#{table}.json")))
+        data = data + previous_data
+      end
+
+      File.open(File.join(dump_path, "indexes", "#{table}.json"), 'w') do |file|
+        file.write(JSON.generate(data))
       end
     end
 
     def export_rows(dump_path, table, row_data)
-      File.open(File.join(dump_path, "data", "#{table}"), 'a') do |file|
-        file.write(row_data)
+      data = row_data
+      if File.exists?(File.join(dump_path, "data", "#{table}.json"))
+        previous_data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
+        data[:data] = previous_data["data"] + row_data[:data]
       end
+
+      File.open(File.join(dump_path, "data", "#{table}.json"), 'w') do |file|
+        file.write(JSON.generate(data))
+      end
+    end
+
+    def load_schema(dump_path, database_url, table)
+      schema = File.join(dump_path, "schemas", "#{table}.rb")
+      schema_bin(:load, database_url, schema.to_s)
+    end
+
+    def load_indexes(database_url, index)
+      Tapsoob::Schema.load_indexes(database_url, index)
     end
 
     def schema_bin(*args)

@@ -199,7 +199,7 @@ module Tapsoob
       puts "Resuming #{table_name}, #{format_number(record_count)} records"
 
       progress = ProgressBar.new(table_name.to_s, record_count)
-      stream = Taps::DataStream.factory(db, stream_state)
+      stream = Tapsoob::DataStream.factory(db, stream_state)
       pull_data_from_table(stream, progress)
     end
 
@@ -208,11 +208,9 @@ module Tapsoob
         begin
           exit 0 if exiting?
 
-          data = stream.fetch
-          output = Tapsoob::Utils.export_rows(dump_path, stream.table_name, data[0])
-          puts output if output
+          size = stream.fetch_database(dump_path)
           break if stream.complete?
-          progress.inc(stream.state[:total_chunksize]) unless exiting?
+          progress.inc(size) unless exiting?
           stream.error = false
           self.stream_state = stream.to_hash
         rescue Tapsoob::CorruptedData => e
@@ -296,9 +294,170 @@ module Tapsoob
   end
 
   class Push < Operation
-  end
+    def file_prefix
+      "push"
+    end
 
-  class DataStreamKeyed < DataStream
-    attr_accessor :buffer
+    def to_hash
+      super.merge(:local_tables_info => local_tables_info)
+    end
+
+    def run
+      catch_errors do
+        unless resuming?
+          push_schema if !skip_schema?
+          push_indexes if indexes_first? && !skip_schema?
+        end
+        setup_signal_trap
+        push_partial_data if resuming?
+        push_data
+        push_indexes if !indexes_first? && !skip_schema?
+        push_reset_sequences
+      end
+    end
+
+    def push_indexes
+      idxs = {}
+      table_idxs = Dir.glob(File.join(dump_path, "indexes", "*.json")).map { |path| File.basename(path, '.json') }
+      table_idxs.each do |table_idx|
+        idxs[table_idx] = JSON.parse(File.read(File.join(dump_path, "indexes", "#{table_idx}.json")))
+      end
+
+      return unless idxs.size > 0
+
+      puts "Sending indexes"
+
+      apply_table_filter(idxs).each do |table, indexes|
+        next unless indexes.size > 0
+        progress = ProgressBar.new(table, indexes.size)
+        indexes.each do |idx|
+          Tapsoob::Utils.load_indexes(database_url, idx)
+          progress.inc(1)
+        end
+        progress.finish
+      end
+    end
+
+    def push_schema
+      puts "Sending schema"
+
+      progress = ProgressBar.new('Schema', tables.size)
+      tables.each do |table, count|
+        log.debug "Loading '#{table}' schema\n"
+        Tapsoob::Utils.load_schema(dump_path, database_url, table)
+        progress.inc(1)
+      end
+      progress.finish
+    end
+
+    def push_reset_sequences
+      puts "Resetting sequences"
+
+      Tapsoob::Utils.schema_bin(:reset_db_sequences, database_url)
+    end
+
+    def push_partial_data
+      return if stream_state == {}
+
+      table_name = stream_state[:table_name]
+      record_count = tables[table_name.to_s]
+      puts "Resuming #{table_name}, #{format_number(record_count)} records"
+      progress = ProgressBar.new(table_name.to_s, record_count)
+      stream = Tapsoob::DataStream.factory(db, stream_state)
+      push_data_from_file(stream, progress)
+    end
+
+    def push_data
+      puts "Sending data"
+
+      puts "#{tables.size} tables, #{format_number(record_count)} records"
+
+      tables.each do |table_name, count|
+        stream = Tapsoob::DataStream.factory(db,
+          :table_name => table_name,
+          :chunksize => default_chunksize)
+        progress = ProgressBar.new(table_name.to_s, count)
+        push_data_from_file(stream, progress)
+      end
+    end
+
+    def push_data_from_file(stream, progress)
+      loop do
+        if exiting?
+          store_session
+          exit 0
+        end
+
+        row_size = 0
+        chunksize = stream.state[:chunksize]
+
+        begin
+          chunksize = Tapsoob::Utils.calculate_chunksize(chunksize) do |c|
+            stream.state[:chunksize] = c.to_i
+            encoded_data, row_size, elapsed_time = nil
+            d1 = c.time_delta do
+              encoded_data, row_size, elapsed_time = stream.fetch({ :type => "file", :source => dump_path })
+            end
+            break if stream.complete?
+
+            d2 = c.time_delta do
+              checksum = Taps::Utils.checksum(encoded_data).to_s
+            end
+
+            size = stream.fetch_data_in_database({ :encoded_data => encoded_data, :checksum => checksum })
+            self.stream_state = stream.to_hash
+
+            c.idle_secs = (d1 + d2)
+
+            elapsed_time
+          end
+        rescue Taps::CorruptedData => e
+          # retry the same data, it got corrupted somehow.
+          next
+        rescue Taps::DuplicatePrimaryKeyError => e
+          # verify the stream and retry it
+          stream.verify_stream
+          stream = JSON.generate({ :state => stream.to_hash })
+          next
+        end
+        stream.state[:chunksize] = chunksize
+
+        progress.inc(row_size)
+
+        stream.increment(row_size)
+        break if stream.complete?
+      end
+
+      progress.finish
+      completed_tables << stream.table_name.to_s
+      self.stream_state = {}
+    end
+
+    def local_tables_info
+      opts[:local_tables_info] ||= fetch_local_tables_info
+    end
+
+    def tables
+      h = {}
+      local_tables_info.each do |table_name, count|
+        next if completed_tables.include?(table_name.to_s)
+        h[table_name.to_s] = count
+      end
+      h
+    end
+
+    def record_count
+      @record_count ||= local_tables_info.values.inject(0) { |a,c| a += c }
+    end
+
+    def fetch_local_tables_info
+      tables_with_counts = {}
+      tbls = Dir.glob(File.join(dump_path, "data", "*")).map { |path| File.basename(path, ".json") }
+      tbls.each do |table|
+        data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
+        tables_with_counts[table] = data.size
+      end
+      apply_table_filter(tables_with_counts)
+    end
   end
 end

@@ -70,13 +70,25 @@ module Tapsoob
     # goes below 100 or maybe if offset is > 1000
     def fetch_rows
       state[:chunksize] = fetch_chunksize
-      ds = table.order(*order_by).limit(state[:chunksize], state[:total_chunksize])
+      ds = table.order(*order_by).limit(state[:chunksize], state[:offset])
       log.debug "DataStream#fetch_rows SQL -> #{ds.sql}"
       rows = Tapsoob::Utils.format_data(ds.all,
         :string_columns => string_columns,
         :schema => db.schema(table_name),
         :table => table_name
       )
+      update_chunksize_stats
+      rows
+    end
+
+    def fetch_file(dump_path)
+      state[:chunksize] = fetch_chunksize
+      ds = eval(File.read(File.join(dump_path, "data", "#{table_name}.rb")))
+      log.debug "DataStream#fetch_file"
+      rows = {
+        :header => ds[:header],
+        :data   => ds[:data][state[:offset], (state[:offset] + state[:chunksize])]
+      }
       update_chunksize_stats
       rows
     end
@@ -104,11 +116,13 @@ module Tapsoob
       Tapsoob::Utils.base64encode(Marshal.dump(rows))
     end
 
-    def fetch
+    def fetch(opts = {})
+      opts = opts.merge({ :type => "database", :source => db.uri })
+
       log.debug "DataStream#fetch state -> #{state.inspect}"
 
       t1 = Time.now
-      rows = fetch_rows
+      rows = (opts[:type] == "file" ? fetch_file(opts[:source]) : fetch_rows)
       encoded_data = encode_rows(rows)
       t2 = Time.now
       elapsed_time = t2 - t1
@@ -120,6 +134,45 @@ module Tapsoob
 
     def complete?
       @complete
+    end
+
+    def fetch_database(dump_path)
+      params = fetch_from_database
+      encoded_data = params[:encoded_data]
+      json = params[:json]
+
+      rows = parse_encoded_data(encoded_data, json[:checksum])
+
+      @complete = rows == { }
+
+      # update local state
+      state.merge!(json[:state].merge(:chunksize => state[:chunksize]))
+
+      unless @complete
+        Tapsoob::Utils.export_rows(dump_path, table_name, rows)
+        state[:offset] += rows[:data].size
+        rows[:data].size
+      else
+        0
+      end
+    end
+
+    def fetch_from_database
+      res = nil
+      log.debug "DataStream#fetch_from_database state -> #{state.inspect}"
+      state[:chunksize] = Tapsoob::Utils.calculate_chunksize(state[:chunksize]) do |c|
+        state[:chunksize] = c.to_i
+        encoded_data = fetch.first
+
+        checksum = Tapsoob::Utils.checksum(encoded_data).to_s
+
+        res = {
+          :json         => { :checksum => checksum, :state => to_hash },
+          :encoded_data => encoded_data
+        }
+      end
+
+      res
     end
 
     def self.parse_json(json)
@@ -160,6 +213,99 @@ module Tapsoob
       else
         DataStream.new(db, state)
       end
+    end
+  end
+
+  class DataStreamKeyed < DataStream
+    attr_accessor :buffer
+
+    def initialize(db, state)
+      super(db, state)
+      @state = { :primary_key => order_by(state[:table_name]).first, :filter => 0 }.merge(@state)
+      @state[:chunksize] ||= DEFAULT_CHUNKSIZE
+      @buffer = []
+    end
+
+    def primary_key
+      state[:primary_key].to_sym
+    end
+
+    def buffer_limit
+      if state[:last_fetched] and state[:last_fetched] < state[:filter] and self.buffer.size == 0
+        state[:last_fetched]
+      else
+        state[:filter]
+      end
+    end
+
+    def calc_limit(chunksize)
+      # we want to not fetch more than is needed while we're
+      # inside sinatra but locally we can select more than
+      # is strictly needed
+      if defined?(Sinatra)
+        (chunksize * 1.1).ceil
+      else
+        (chunksize * 3).ceil
+      end
+    end
+
+    def load_buffer(chunksize)
+      # make sure BasicObject is not polluted by subsequent requires
+      Sequel::BasicObject.remove_methods!
+
+      num = 0
+      loop do
+        limit = calc_limit(chunksize)
+        # we have to use local variables in order for the virtual row filter to work correctly
+        key = primary_key
+        buf_limit = buffer_limit
+        ds = table.order(*order_by).filter { key.sql_number > buf_limit }.limit(limit)
+        log.debug "DataStreamKeyed#load_buffer SQL -> #{ds.sql}"
+        data = ds.all
+        self.buffer += data
+        num += data.size
+        if data.size > 0
+          # keep a record of the last primary key value in the buffer
+          state[:filter] = self.buffer.last[ primary_key ]
+        end
+
+        break if num >= chunksize or data.size == 0
+      end
+    end
+
+    def fetch_buffered(chunksize)
+      load_buffer(chunksize) if self.buffer.size < chunksize
+      rows = buffer.slice(0, chunksize)
+      state[:last_fetched] = if rows.size > 0
+        rows.last[ primary_key ]
+      else
+        nil
+      end
+      rows
+    end
+
+    #def fetch_rows
+    #  chunksize = state[:chunksize]
+    #  Tapsoob::Utils.format_data(fetch_buffered(chunksize) || [],
+    #    :string_columns => string_columns)
+    #end
+
+    def increment(row_count)
+      # pop the rows we just successfully sent off the buffer
+      @buffer.slice!(0, row_count)
+    end
+
+    def verify_stream
+      key = primary_key
+      ds = table.order(*order_by)
+      current_filter = ds.max(key.sql_number)
+
+      # set the current filter to the max of the primary key
+      state[:filter] = current_filter
+      # clear out the last_fetched value so it can restart from scratch
+      state[:last_fetched] = nil
+
+      log.debug "DataStreamKeyed#verify_stream -> state: #{state.inspect}"
     end
   end
 end
