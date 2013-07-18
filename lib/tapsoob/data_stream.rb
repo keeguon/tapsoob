@@ -83,11 +83,11 @@ module Tapsoob
 
     def fetch_file(dump_path)
       state[:chunksize] = fetch_chunksize
-      ds = eval(File.read(File.join(dump_path, "data", "#{table_name}.rb")))
+      ds = JSON.parse(File.read(File.join(dump_path, "data", "#{table_name}.json")))
       log.debug "DataStream#fetch_file"
       rows = {
-        :header => ds[:header],
-        :data   => ds[:data][state[:offset], (state[:offset] + state[:chunksize])]
+        :header => ds["header"],
+        :data   => ds["data"][state[:offset], (state[:offset] + state[:chunksize])] || [ ]
       }
       update_chunksize_stats
       rows
@@ -117,7 +117,7 @@ module Tapsoob
     end
 
     def fetch(opts = {})
-      opts = opts.merge({ :type => "database", :source => db.uri })
+      opts = opts || { :type => "database", :source => db.uri }
 
       log.debug "DataStream#fetch state -> #{state.inspect}"
 
@@ -127,7 +127,7 @@ module Tapsoob
       t2 = Time.now
       elapsed_time = t2 - t1
 
-      @complete = rows == { }
+      @complete = rows[:data] == [ ]
 
       [encoded_data, (@complete ? 0 : rows[:data].size), elapsed_time]
     end
@@ -143,7 +143,7 @@ module Tapsoob
 
       rows = parse_encoded_data(encoded_data, json[:checksum])
 
-      @complete = rows == { }
+      @complete = rows[:data] == [ ]
 
       # update local state
       state.merge!(json[:state].merge(:chunksize => state[:chunksize]))
@@ -175,6 +175,20 @@ module Tapsoob
       res
     end
 
+    def fetch_data_in_database(params)
+      encoded_data = params[:encoded_data]
+
+      rows = parse_encoded_data(encoded_data, params[:checksum])
+      @complete = rows[:data] == [ ]
+
+      unless @complete
+        import_rows(rows)
+        rows[:data].size
+      else
+        0
+      end
+    end
+
     def self.parse_json(json)
       hash = JSON.parse(json).symbolize_keys
       hash[:state].symbolize_keys! if hash.has_key?(:state)
@@ -192,6 +206,21 @@ module Tapsoob
           File.open("dump.#{Process.pid}.dat", "w") { |f| f.write(encoded_data) }
         end
         raise e
+      end
+    end
+
+    def import_rows(rows)
+      table.import(rows[:header], rows[:data])
+      state[:offset] += rows[:data].size
+    rescue Exception => ex
+      case ex.message
+      when /integer out of range/ then
+        raise Taps::InvalidData, <<-ERROR, []
+  \nDetected integer data that exceeds the maximum allowable size for an integer type.
+  This generally occurs when importing from SQLite due to the fact that SQLite does
+  not enforce maximum values on integer types.
+        ERROR
+      else raise ex
       end
     end
 
@@ -284,11 +313,15 @@ module Tapsoob
       rows
     end
 
-    #def fetch_rows
-    #  chunksize = state[:chunksize]
-    #  Tapsoob::Utils.format_data(fetch_buffered(chunksize) || [],
-    #    :string_columns => string_columns)
+    #def import_rows(rows)
+    #  table.import(rows[:header], rows[:data])
     #end
+
+    def fetch_rows
+      chunksize = state[:chunksize]
+      Tapsoob::Utils.format_data(fetch_buffered(chunksize) || [],
+        :string_columns => string_columns)
+    end
 
     def increment(row_count)
       # pop the rows we just successfully sent off the buffer

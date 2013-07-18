@@ -400,21 +400,25 @@ module Tapsoob
             end
             break if stream.complete?
 
+            data = nil
             d2 = c.time_delta do
-              checksum = Taps::Utils.checksum(encoded_data).to_s
+              data = {
+                :state    => stream.to_hash,
+                :checksum => Tapsoob::Utils.checksum(encoded_data).to_s
+              }
             end
 
-            size = stream.fetch_data_in_database({ :encoded_data => encoded_data, :checksum => checksum })
+            size = stream.fetch_data_in_database({ :encoded_data => encoded_data, :checksum => data[:checksum] })
             self.stream_state = stream.to_hash
 
             c.idle_secs = (d1 + d2)
 
             elapsed_time
           end
-        rescue Taps::CorruptedData => e
+        rescue Tapsoob::CorruptedData => e
           # retry the same data, it got corrupted somehow.
           next
-        rescue Taps::DuplicatePrimaryKeyError => e
+        rescue Tapsoob::DuplicatePrimaryKeyError => e
           # verify the stream and retry it
           stream.verify_stream
           stream = JSON.generate({ :state => stream.to_hash })
