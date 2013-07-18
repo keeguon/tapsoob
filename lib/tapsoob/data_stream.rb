@@ -117,7 +117,7 @@ module Tapsoob
     end
 
     def fetch(opts = {})
-      opts = opts || { :type => "database", :source => db.uri }
+      opts = (opts.empty? ? { :type => "database", :source => db.uri } : opts)
 
       log.debug "DataStream#fetch state -> #{state.inspect}"
 
@@ -127,7 +127,11 @@ module Tapsoob
       t2 = Time.now
       elapsed_time = t2 - t1
 
-      @complete = rows[:data] == [ ]
+      if opts[:type] == "file"
+        @complete = rows[:data] == [ ]
+      else
+        @complete = rows == { }
+      end
 
       [encoded_data, (@complete ? 0 : rows[:data].size), elapsed_time]
     end
@@ -143,7 +147,7 @@ module Tapsoob
 
       rows = parse_encoded_data(encoded_data, json[:checksum])
 
-      @complete = rows[:data] == [ ]
+      @complete = rows == { }
 
       # update local state
       state.merge!(json[:state].merge(:chunksize => state[:chunksize]))
@@ -179,6 +183,7 @@ module Tapsoob
       encoded_data = params[:encoded_data]
 
       rows = parse_encoded_data(encoded_data, params[:checksum])
+
       @complete = rows[:data] == [ ]
 
       unless @complete
@@ -317,11 +322,11 @@ module Tapsoob
     #  table.import(rows[:header], rows[:data])
     #end
 
-    def fetch_rows
-      chunksize = state[:chunksize]
-      Tapsoob::Utils.format_data(fetch_buffered(chunksize) || [],
-        :string_columns => string_columns)
-    end
+    #def fetch_rows
+    #  chunksize = state[:chunksize]
+    #  Tapsoob::Utils.format_data(fetch_buffered(chunksize) || [],
+    #    :string_columns => string_columns)
+    #end
 
     def increment(row_count)
       # pop the rows we just successfully sent off the buffer
