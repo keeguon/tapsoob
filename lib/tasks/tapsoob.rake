@@ -4,6 +4,9 @@ namespace :tapsoob do
     # Default options
     opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :indexes_first => false}
 
+    # Get the dump_path
+    dump_path = File.expand_path(Rails.root.join("db", Time.now.strftime("%Y%m%d%I%M%S%p"))).to_s
+
     # Create paths
     FileUtils.mkpath "#{dump_path}/schemas"
     FileUtils.mkpath "#{dump_path}/data"
@@ -26,10 +29,6 @@ namespace :tapsoob do
       else
         "sqlite://#{connection_config[:adapter]}"
       end
-    end
-
-    def dump_path
-      File.expand_path(Rails.root.join("db", Time.now.strftime("%Y%m%d%I%M%S%p"))).to_s
     end
 
     def latest_dump_path
