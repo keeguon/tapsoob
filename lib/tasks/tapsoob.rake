@@ -1,8 +1,15 @@
 namespace :tapsoob do
   desc "Pulls a database to your filesystem"
   task :pull => :environment do
-    p dump_path
+    # Default options
     opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :indexes_first => false}
+
+    # Create paths
+    FileUtils.mkpath "#{dump_path}/schemas"
+    FileUtils.mkpath "#{dump_path}/data"
+    FileUtils.mkpath "#{dump_path}/indexes"
+
+    # Run operation
     Tapsoob::Operation.factory(:pull, database_uri, dump_path, opts).run
   end
 
