@@ -1,3 +1,4 @@
+# -*- encoding : utf-8 -*-
 require 'sequel'
 require 'sequel/extensions/schema_dumper'
 require 'sequel/extensions/migration'

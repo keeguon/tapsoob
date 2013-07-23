@@ -1,3 +1,4 @@
+# -*- encoding : utf-8 -*-
 module Tapsoob
   class BaseError < StandardError
     attr_reader :original_backtrace

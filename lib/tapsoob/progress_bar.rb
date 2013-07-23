@@ -1,3 +1,4 @@
+# -*- encoding : utf-8 -*-
 #
 # Ruby/ProgressBar - a text progress bar library
 #

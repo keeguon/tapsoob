@@ -1,3 +1,4 @@
+# -*- encoding : utf-8 -*-
 module Tapsoob
   def self.log=(log)
     @@log = log
