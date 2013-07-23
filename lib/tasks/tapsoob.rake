@@ -18,6 +18,14 @@ namespace :tapsoob do
 
   desc "Push a compatible dump on your filesystem to a database"
   task :push => :environment do
+    # Default options
+    opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :indexes_first => false}
+
+    # Get the dump_path
+    dump_path = Dir[Rails.root.join("db", "*/")].select { |e| e =~ /([0-9]{14})([A-Z]{2})/ }.sort.last
+
+    # Run operation
+    Tapsoob::Operation.factory(:push, database_uri, dump_path, opts).run 
   end
 
   private
@@ -29,8 +37,5 @@ namespace :tapsoob do
       else
         "sqlite://#{connection_config[:adapter]}"
       end
-    end
-
-    def latest_dump_path
     end
 end
