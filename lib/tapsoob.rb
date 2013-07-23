@@ -4,5 +4,5 @@ $:.unshift File.dirname(__FILE__)
 require 'tapsoob/operation'
 
 module Tapsoob
-
+  require 'tapsoob/railtie' if defined?(Rails)
 end
