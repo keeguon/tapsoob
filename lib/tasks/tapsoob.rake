@@ -16,7 +16,7 @@ namespace :tapsoob do
       if (connection_config[:adapter] =~ /sqlite/i).nil?
         "#{connection_config[:adapter]}://#{connection_config[:username]}:#{connection_config[:password]}@#{connection_config[:host]}/#{connection_config[:database]}"
       else
-        "#{connection_config[:adapter]}://#{connection_config[:adapter]}"
+        "sqlite://#{connection_config[:adapter]}"
       end
     end
 
