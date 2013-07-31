@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    tapsoob (0.0.1)
+    tapsoob (0.1.0)
       sequel (~> 3.45.0)
 
 GEM

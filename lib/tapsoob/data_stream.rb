@@ -216,7 +216,7 @@ module Tapsoob
     end
 
     def import_rows(rows)
-      table.import(rows[:header], rows[:data])
+      table.import(rows[:header], rows[:data], :commit_every => 100)
       state[:offset] += rows[:data].size
     rescue Exception => ex
       case ex.message
