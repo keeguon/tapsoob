@@ -36,6 +36,8 @@ namespace :tapsoob do
       case connection_config['adapter']
       when "mysql", "mysql2"
         uri = "mysql://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
+      when "oracle_enhanced"
+        uri = "oracle://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
       when "sqlite"
         uri = "sqlite://#{connection_config['adapter']}"
       else
