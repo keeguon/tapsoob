@@ -33,10 +33,13 @@ namespace :tapsoob do
       uri               = ""
       connection_config = YAML.load_file(Rails.root.join("config", "database.yml"))[Rails.env]
 
-      if (connection_config[:adapter] =~ /sqlite/i).nil?
-        uri = "#{connection_config['adapter']}://#{connection_config['username']}:#{connection_config['password']}@#{connection_config['host']}/#{connection_config['database']}"
-      else
+      case connection_config['adapter']
+      when "mysql", "mysql2"
+        uri = "mysql://#{connection_config['username']}:#{connection_config['password']}@#{connection_config['host']}/#{connection_config['database']}"
+      when "sqlite"
         uri = "sqlite://#{connection_config['adapter']}"
+      else
+        uri = "#{connection_config['adapter']}://#{connection_config['username']}:#{connection_config['password']}@#{connection_config['host']}/#{connection_config['database']}"
       end
 
       uri = "jdbc:#{uri}" if RUBY_PLATFORM =~ /java/
