@@ -35,11 +35,11 @@ namespace :tapsoob do
 
       case connection_config['adapter']
       when "mysql", "mysql2"
-        uri = "mysql://#{connection_config['username']}:#{connection_config['password']}@#{connection_config['host']}/#{connection_config['database']}"
+        uri = "mysql://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
       when "sqlite"
         uri = "sqlite://#{connection_config['adapter']}"
       else
-        uri = "#{connection_config['adapter']}://#{connection_config['username']}:#{connection_config['password']}@#{connection_config['host']}/#{connection_config['database']}"
+        uri = "#{connection_config['adapter']}://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
       end
 
       uri = "jdbc:#{uri}" if RUBY_PLATFORM =~ /java/
