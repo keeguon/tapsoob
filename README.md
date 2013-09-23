@@ -41,7 +41,7 @@ You can list all available options using the command:
 If you're using Rails, there's also two Rake tasks provided:
 
 * `tapsoob:pull` which dumps the database into a new folder under the `db` folder
-* `tapsoob:push' which reads the last dump you made from `tapsoob:pull` from the `db` folder
+* `tapsoob:push` which reads the last dump you made from `tapsoob:pull` from the `db` folder
 
 
 ## Notes
