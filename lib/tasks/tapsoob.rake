@@ -31,12 +31,12 @@ namespace :tapsoob do
   private
     def database_uri
       uri               = ""
-      connection_config = ActiveRecord::Base.connection_config
+      connection_config = YAML.load_file(Rails.root.join("config", "database.yml"))[Rails.env]
 
       if (connection_config[:adapter] =~ /sqlite/i).nil?
-        uri = "#{connection_config[:adapter]}://#{connection_config[:username]}:#{connection_config[:password]}@#{connection_config[:host]}/#{connection_config[:database]}"
+        uri = "#{connection_config['adapter']}://#{connection_config['username']}:#{connection_config['password']}@#{connection_config['host']}/#{connection_config['database']}"
       else
-        uri = "sqlite://#{connection_config[:adapter]}"
+        uri = "sqlite://#{connection_config['adapter']}"
       end
 
       uri = "jdbc:#{uri}" if RUBY_PLATFORM =~ /java/
