@@ -41,7 +41,11 @@ namespace :tapsoob do
           uri = "#{connection_config['adapter']}://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
         end
       when "oracle_enhanced"
-        uri = "oracle://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
+        if RUBY_PLATFORM =~ /java/
+          uri = "oracle:thin:#{connection_config['username']}/#{connection_config['password']}@#{connection_config['host']}:1521:#{connection_config['database']}"
+        else
+          uri = "oracle://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
+        end
       when "sqlite"
         uri = "sqlite://#{connection_config['adapter']}"
       else
