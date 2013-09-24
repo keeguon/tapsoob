@@ -138,7 +138,7 @@ Data : #{data}
       end
 
       File.open(File.join(dump_path, "data", "#{table}.json"), 'w') do |file|
-        file.write(JSON.generate(data))
+        file.write(JSON.generate(data.unpack("C*").pack("U*")))
       end
     end
 
