@@ -64,6 +64,9 @@ Type : #{schema.detect{|s| s.first == column}.last[:db_type]}
 Data : #{data}
             ERROR
           end
+
+          # Type conversion
+          row[column] = data.strftime('%Y-%m-%d %H:%M:%S') if data.is_a?(Time)
         end
         header.collect { |h| row[h] }
       end
