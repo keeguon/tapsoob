@@ -382,6 +382,7 @@ module Tapsoob
       puts "#{tables.size} tables, #{format_number(record_count)} records"
 
       tables.each do |table_name, count|
+        next unless File.exists?(File.join(dump_path, "data", "#{table}.json"))
         stream = Tapsoob::DataStream.factory(db,
           :table_name => table_name,
           :chunksize => default_chunksize)
