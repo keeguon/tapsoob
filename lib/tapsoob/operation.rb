@@ -119,6 +119,8 @@ module Tapsoob
         @db << "ALTER SESSION SET NLS_DATE_FORMAT='YYYY-MM-DD HH24:MI:SS'"
         @db << "ALTER SESSION SET NLS_TIMESTAMP_FORMAT='YYYY-MM-DD HH24:MI:SS:FF6'"
       end
+
+      @db
     end
 
     def format_number(num)
@@ -463,10 +465,14 @@ module Tapsoob
 
     def fetch_local_tables_info
       tables_with_counts = {}
-      tbls = Dir.glob(File.join(dump_path, "data", "*")).map { |path| File.basename(path, ".json") }
+      tbls = Dir.glob(File.join(dump_path, "schemas", "*")).map { |path| File.basename(path, ".rb") }
       tbls.each do |table|
-        data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
-        tables_with_counts[table] = data.size
+        if File.exists?(File.join(dump_path, "data", "#{table}.json"))
+          data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
+          tables_with_counts[table] = data.size
+        else
+          tables_with_counts[table] = 0
+        end
       end
       apply_table_filter(tables_with_counts)
     end

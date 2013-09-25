@@ -156,7 +156,11 @@ Data : #{data}
 
     def schema_bin(*args)
       bin_path = File.expand_path("#{File.dirname(__FILE__)}/../../bin/#{bin('schema')}")
-      `"#{bin_path}" #{args.map { |a| "'#{a}'" }.join(' ')}`
+      if RUBY_PLATFORM =~ /java/i
+        `jruby -S "#{bin_path}" #{args.map { |a| "'#{a}'" }.join(' ') }`
+      else
+        `"#{bin_path}" #{args.map { |a| "'#{a}'" }.join(' ') }`
+      end
     end
 
     def primary_key(db, table)
