@@ -281,7 +281,7 @@ module Tapsoob
       puts "Receiving indexes"
 
       raw_idxs = Tapsoob::Utils.schema_bin(:indexes_individual, database_url)
-      idxs     = (raw_idxs && raw_idxs.length >= 2 ? JSON.parse(raw_idxs) : nil)
+      idxs     = (raw_idxs && raw_idxs.length >= 2 ? JSON.parse(raw_idxs) : {})
 
       apply_table_filter(idxs).each do |table, indexes|
         next unless indexes.size > 0
