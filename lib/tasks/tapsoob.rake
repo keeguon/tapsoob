@@ -25,7 +25,7 @@ namespace :tapsoob do
     dump_path = Dir[Rails.root.join("db", "*/")].select { |e| e =~ /([0-9]{14})([A-Z]{2})/ }.sort.last
 
     # Run operation
-    Tapsoob::Operation.factory(:push, database_uri, dump_path, opts).run 
+    Tapsoob::Operation.factory(:push, database_uri, dump_path, opts).run
   end
 
   private
@@ -35,24 +35,24 @@ namespace :tapsoob do
 
       case connection_config['adapter']
       when "mysql", "mysql2"
-        if RUBY_PLATFORM =~ /java/
-          uri = "mysql://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
-        else
-          uri = "#{connection_config['adapter']}://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
-        end
+        uri = "mysql://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
+      when "postgresql", "postgres", "pg"
+        uri = "://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
+        uri = ((RUBY_PLATFORM =~ /java/).nil? ? "postgres" : "postgresql") + uri
       when "oracle_enhanced"
-        if RUBY_PLATFORM =~ /java/
-          uri = "oracle:thin:#{connection_config['username']}/#{connection_config['password']}@#{connection_config['host']}:1521:#{connection_config['database']}"
-        else
+        if (RUBY_PLATFORM =~ /java/).nil?
           uri = "oracle://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
+        else
+          uri = "oracle:thin:#{connection_config['username']}/#{connection_config['password']}@#{connection_config['host']}:1521:#{connection_config['database']}"
         end
-      when "sqlite"
-        uri = "sqlite://#{connection_config['adapter']}"
+      when "sqlite3", "sqlite"
+        uri = "sqlite://#{connection_config['database']}"
       else
-        uri = "#{connection_config['adapter']}://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
+        raise Exception, "Unsupported database adapter."
+        #uri = "#{connection_config['adapter']}://#{connection_config['host']}/#{connection_config['database']}?user=#{connection_config['username']}&password=#{connection_config['password']}"
       end
 
-      uri = "jdbc:#{uri}" if RUBY_PLATFORM =~ /java/
+      uri = "jdbc:#{uri}" unless (RUBY_PLATFORM =~ /java/).nil?
 
       uri
     end
