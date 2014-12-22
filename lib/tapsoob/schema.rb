@@ -19,7 +19,7 @@ module Tapsoob
         <<END_MIG
 Class.new(Sequel::Migration) do
   def up
-    #{db.dump_table_schema(table.identifier, :indexes => false)}
+    #{db.dump_table_schema(table, :indexes => false)}
   end
 
   def down
