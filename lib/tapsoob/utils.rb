@@ -178,7 +178,7 @@ Data : #{data}
       if pkey
         pkey.kind_of?(Array) ? pkey : [pkey.to_sym]
       else
-        table = table.to_sym.identifier unless table.kind_of?(Sequel::SQL::Identifier)
+        table = table.to_sym unless table.kind_of?(Sequel::SQL::Identifier)
         db[table].columns
       end
     end

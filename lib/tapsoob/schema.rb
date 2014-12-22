@@ -10,14 +10,14 @@ module Tapsoob
 
     def dump(database_url)
       db = Sequel.connect(database_url)
-      [:schema_dumper, :migration].each { |ext| db.extension ext }
+      db.extension :schema_dumper
       db.dump_schema_migration(:indexes => false)
     end
 
     def dump_table(database_url, table)
       table = table.to_sym
       Sequel.connect(database_url) do |db|
-        [:schema_dumper, :migration].each { |ext| db.extension ext }
+        db.extension :schema_dumper
         <<END_MIG
 Class.new(Sequel::Migration) do
   def up
@@ -34,14 +34,14 @@ END_MIG
 
     def indexes(database_url)
       db = Sequel.connect(database_url)
-      [:schema_dumper, :migration].each { |ext| db.extension ext }
+      db.extension :schema_dumper
       db.dump_indexes_migration
     end
 
     def indexes_individual(database_url)
       idxs = {}
       Sequel.connect(database_url) do |db|
-        [:schema_dumper, :migration].each { |ext| db.extension ext }
+        db.extension :schema_dumper
 
         tables = db.tables
         tables.each do |table|
@@ -65,7 +65,7 @@ END_MIG
 
     def load(database_url, schema)
       Sequel.connect(database_url) do |db|
-        [:schema_dumper, :migration].each { |ext| db.extension ext }
+        db.extension :schema_dumper
         klass = eval(schema)
         klass.apply(db, :down)
         klass.apply(db, :up)
@@ -74,14 +74,14 @@ END_MIG
 
     def load_indexes(database_url, indexes)
       Sequel.connect(database_url) do |db|
-        [:schema_dumper, :migration].each { |ext| db.extension ext }
+        db.extension :schema_dumper
         eval(indexes).apply(db, :up)
       end
     end
 
     def reset_db_sequences(database_url)
       db = Sequel.connect(database_url)
-      [:schema_dumper, :migration].each { |ext| db.extension ext }
+      db.extension :schema_dumper
       return unless db.respond_to?(:reset_primary_key_sequence)
       db.tables.each do |table|
         db.reset_primary_key_sequence(table)

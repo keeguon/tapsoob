@@ -37,7 +37,7 @@ module Tapsoob
     end
 
     def table_name_sql
-      table_name.identifier
+      table_name
     end
 
     def to_hash
