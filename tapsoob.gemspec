@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   # Metadata
   s.name        = "tapsoob"
   s.version     = Tapsoob::VERSION.dup
-  s.platform    = Gem::Platform::RUBY
+  s.platform    = Gem::Platform::JRUBY
   s.authors     = ["Félix Bellanger"]
   s.email       = "felix.bellanger@faveod.com"
   s.homepage    = "https://github.com/Keeguon/tapsoob"
