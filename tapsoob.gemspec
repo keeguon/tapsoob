@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   # Metadata
   s.name        = "tapsoob"
   s.version     = Tapsoob::VERSION.dup
-  s.authors     = ["Félix Bellanger", "Michael Crisco"]
+  s.authors     = ["Félix Bellanger", "Michael Chrisco"]
   s.email       = "felix.bellanger@faveod.com"
   s.homepage    = "https://github.com/Keeguon/tapsoob"
   s.summary     = "Simple tool to import/export databases."

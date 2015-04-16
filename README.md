@@ -57,7 +57,7 @@ Your exports can be moved from one machine to another for backups or replication
 ## Contributors
 
 * Félix Bellanger <felix.bellanger@gmail.com>
-* Michael Crisco <michaelachrisco@gmail.com>
+* Michael Chrisco <michaelachrisco@gmail.com>
 
 
 ## License
