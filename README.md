@@ -49,15 +49,21 @@ If you're using Rails, there's also two Rake tasks provided:
 Your exports can be moved from one machine to another for backups or replication, you can also use Tapsoob to switch your RDBMS from one of the supported system to another.
 
 
-## Feature(s) to come
+## ToDo
 
-* Tests
+* Tests (in progress)
+
+
+## Contributors
+
+* Félix Bellanger <felix.bellanger@gmail.com>
+* Michael Crisco <michaelachrisco@gmail.com>
 
 
 ## License
 
 The MIT License (MIT)
-Copyright © 2013 Félix Bellanger <felix.bellanger@gmail.com>
+Copyright © 2015 Félix Bellanger <felix.bellanger@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
