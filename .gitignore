@@ -1,4 +1,5 @@
 # Ignore dev stuffs
+coverage/
 db/
 *.dat
 *.gem
