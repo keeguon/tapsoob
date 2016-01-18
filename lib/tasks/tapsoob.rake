@@ -56,7 +56,7 @@ namespace :tapsoob do
     old_dumps.each do |dir|
       if Dir.exists?(dir)
         puts "Deleting old dump directory ('#{dir}')"
-        Dir.rmdir(dir)
+        FileUtils.remove_entry_secure(dir)
       end
     end
   end
