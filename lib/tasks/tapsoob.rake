@@ -14,6 +14,10 @@ namespace :tapsoob do
 
     # Run operation
     Tapsoob::Operation.factory(:pull, database_uri, dump_path, opts).run
+
+    # Invoke cleanup task
+    Rake::Task["tapsoob:cleanup"].reenable
+    Rake::Task["tapsoob:cleanup"].invoke
   end
 
   desc "Push a compatible dump on your filesystem to a database"
