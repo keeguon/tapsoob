@@ -20,10 +20,10 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   # Dependencies
-  s.add_dependency "sequel", "~> 4.17.0"
+  s.add_dependency "sequel", "~> 4.30.0"
 
   s.add_development_dependency "mysql",   "~> 2.9.1"
-  s.add_development_dependency "mysql2",  "~> 0.3.18"
-  s.add_development_dependency "pg",      "~> 0.18.1"
-  s.add_development_dependency "sqlite3", "~> 1.3.10"
+  s.add_development_dependency "mysql2",  "~> 0.4.2"
+  s.add_development_dependency "pg",      "~> 0.18.4"
+  s.add_development_dependency "sqlite3", "~> 1.3.11"
 end
