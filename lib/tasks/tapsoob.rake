@@ -17,15 +17,48 @@ namespace :tapsoob do
   end
 
   desc "Push a compatible dump on your filesystem to a database"
-  task :push => :environment do
+  task :push, [:timestamp] => :environment do |t, args|
     # Default options
     opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :indexes_first => false}
 
-    # Get the dump_path
-    dump_path = Dir[Rails.root.join("db", "*/")].select { |e| e =~ /([0-9]{14})([A-Z]{2})/ }.sort.last
+    # Get the dumps
+    dumps = Dir[Rails.root.join("db", "*/")].select { |e| e =~ /([0-9]{14})([A-Z]{2})/ }.sort
+
+    # In case a timestamp argument try to use it instead of using the last dump
+    dump_path = dumps.last
+    unless args[:timestamp].empty?
+      timestamps = dumps.map { |dump| File.basename(dump) }
+
+      # Check that the dump_path exists
+      raise Exception.new "Invalid or non existent timestamp: '#{args[:timestamp]}'" unless timestamps.include?(args[:timestamp])
+
+      # Select dump_path
+      dump_path = Rails.root.join("db", args[:timestamp])
+    end
 
     # Run operation
     Tapsoob::Operation.factory(:push, database_uri, dump_path, opts).run
+  end
+
+  desc "Cleanup old dumps"
+  task :clean, [:keep] => :environment do |t, args|
+    # Number of dumps to keep
+    keep = ((args[:keep] =~ /\A[0-9]+\z/).nil? ? 5 : args[:keep].to_i)
+
+    # Get all the dump folders
+    dumps = Dir[Rails.root.join("db", "*/")].select { |e| e =~ /([0-9]{14})([A-Z]{2})/ }.sort
+
+    # Return if there's fewer dumps than we want to keep
+    return if dumps.count <= keep
+
+    # Delete old dumps
+    old_dumps = dumps - dumps.reverse[0..(keep - 1)]
+    old_dumps.each do |dir|
+      if Dir.exists?(dir)
+        puts "Deleting old dump directory ('#{dir}')"
+        Dir.rmdir(dir)
+      end
+    end
   end
 
   private
