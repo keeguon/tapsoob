@@ -52,15 +52,14 @@ namespace :tapsoob do
     # Get all the dump folders
     dumps = Dir[Rails.root.join("db", "*/")].select { |e| e =~ /([0-9]{14})([A-Z]{2})/ }.sort
 
-    # Return if there's fewer dumps than we want to keep
-    return if dumps.count <= keep
-
-    # Delete old dumps
-    old_dumps = dumps - dumps.reverse[0..(keep - 1)]
-    old_dumps.each do |dir|
-      if Dir.exists?(dir)
-        puts "Deleting old dump directory ('#{dir}')"
-        FileUtils.remove_entry_secure(dir)
+    # Delete old dumps only if there more than we want to keep
+    if dumps.count > keep
+      old_dumps = dumps - dumps.reverse[0..(keep - 1)]
+      old_dumps.each do |dir|
+        if Dir.exists?(dir)
+          puts "Deleting old dump directory ('#{dir}')"
+          FileUtils.remove_entry_secure(dir)
+        end
       end
     end
   end
