@@ -30,7 +30,7 @@ namespace :tapsoob do
 
     # In case a timestamp argument try to use it instead of using the last dump
     dump_path = dumps.last
-    unless args[:timestamp].empty?
+    unless args[:timestamp].nil?
       timestamps = dumps.map { |dump| File.basename(dump) }
 
       # Check that the dump_path exists
