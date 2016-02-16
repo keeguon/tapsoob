@@ -13,7 +13,7 @@
 class ProgressBar
   VERSION = "0.9"
 
-  def initialize (title, total, out = STDERR)
+  def initialize (title, total, out = STDOUT)
     @title = title
     @total = total
     @out = out
@@ -138,14 +138,14 @@ class ProgressBar
   end
 
   def show
-    arguments = @format_arguments.map {|method| 
+    arguments = @format_arguments.map {|method|
       method = sprintf("fmt_%s", method)
       send(method)
     }
     line = sprintf(@format, *arguments)
 
     width = get_width
-    if line.length == width - 1 
+    if line.length == width - 1
       @out.print(line + eol)
       @out.flush
     elsif line.length >= width
@@ -168,7 +168,7 @@ class ProgressBar
     end
 
     # Use "!=" instead of ">" to support negative changes
-    if cur_percentage != prev_percentage || 
+    if cur_percentage != prev_percentage ||
         Time.now - @previous_time >= 1 || @finished_p
       show
     end
