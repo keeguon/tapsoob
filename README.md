@@ -51,6 +51,7 @@ Your exports can be moved from one machine to another for backups or replication
 
 ## ToDo
 
+* Add a compression layer
 * Tests (in progress)
 
 
