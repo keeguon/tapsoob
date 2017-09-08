@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   # Dependencies
-  s.add_dependency "sequel", "~> 4.30.0"
+  s.add_dependency "sequel", "~> 5.0.0"
 
   s.add_development_dependency "mysql",   "~> 2.9.1"
   s.add_development_dependency "mysql2",  "~> 0.4.2"
