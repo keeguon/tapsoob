@@ -67,7 +67,7 @@ namespace :tapsoob do
   private
     def database_uri
       uri               = ""
-      connection_config = YAML.load_file(Rails.root.join("config", "database.yml"))[Rails.env]
+      connection_config = YAML::load(ERB.new(Rails.root.join("config", "database.yml").read).result)[Rails.env]
 
       case connection_config['adapter']
       when "mysql", "mysql2"
