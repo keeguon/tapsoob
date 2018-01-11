@@ -1,5 +1,7 @@
 # Ignore dev stuffs
+config/
 coverage/
 db/
 *.dat
 *.gem
+.ruby-version
