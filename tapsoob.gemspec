@@ -22,8 +22,7 @@ Gem::Specification.new do |s|
   # Dependencies
   s.add_dependency "sequel", "~> 5.0.0"
 
-  s.add_development_dependency "mysql",   "~> 2.9.1"
-  s.add_development_dependency "mysql2",  "~> 0.4.2"
-  s.add_development_dependency "pg",      "~> 0.18.4"
+  s.add_development_dependency "mysql2",  "~> 0.4.10"
+  s.add_development_dependency "pg",      "~> 1.0.0"
   s.add_development_dependency "sqlite3", "~> 1.3.11"
 end
