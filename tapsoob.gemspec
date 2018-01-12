@@ -26,7 +26,8 @@ Gem::Specification.new do |s|
     s.add_development_dependency "pg",      "~> 1.0.0"
     s.add_development_dependency "sqlite3", "~> 1.3.11"
   else
-    s.platform    = 'java'
+    s.platform = 'java'
+
     s.add_development_dependency "jdbc-mysql",    "~> 5.1.44"
     s.add_development_dependency "jdbc-postgres", "~> 42.1.4"
     s.add_development_dependency "jdbc-sqlite3",  "~> 3.20.1"
