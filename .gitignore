@@ -4,4 +4,5 @@ coverage/
 db/
 *.dat
 *.gem
+*.lock
 .ruby-version

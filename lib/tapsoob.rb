@@ -1,7 +1,4 @@
 # -*- encoding : utf-8 -*-
-$:.unshift File.dirname(__FILE__)
-
-# internal requires
 require 'tapsoob/operation'
 
 module Tapsoob

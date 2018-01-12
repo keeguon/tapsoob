@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
-$:.push File.expand_path("../lib", __FILE__)
-require "tapsoob/version"
+require "./lib/tapsoob/version" unless defined? Tapsoob::VERSION
 
 Gem::Specification.new do |s|
   # Metadata
@@ -22,7 +21,14 @@ Gem::Specification.new do |s|
   # Dependencies
   s.add_dependency "sequel", "~> 5.0.0"
 
-  s.add_development_dependency "mysql2",  "~> 0.4.10"
-  s.add_development_dependency "pg",      "~> 1.0.0"
-  s.add_development_dependency "sqlite3", "~> 1.3.11"
+  if (RUBY_PLATFORM =~ /java/).nil?
+    s.add_development_dependency "mysql2",  "~> 0.4.10"
+    s.add_development_dependency "pg",      "~> 1.0.0"
+    s.add_development_dependency "sqlite3", "~> 1.3.11"
+  else
+    s.platform    = 'java'
+    s.add_development_dependency "jdbc-mysql",    "~> 5.1.44"
+    s.add_development_dependency "jdbc-postgres", "~> 42.1.4"
+    s.add_development_dependency "jdbc-sqlite3",  "~> 3.20.1"
+  end
 end
