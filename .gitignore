@@ -2,6 +2,7 @@
 config/
 coverage/
 db/
+dist/
 *.dat
 *.gem
 *.lock

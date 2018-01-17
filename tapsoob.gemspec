@@ -16,10 +16,12 @@ Gem::Specification.new do |s|
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
+  s.bindir        = 'bin'
   s.require_paths = ["lib"]
 
   # Dependencies
   s.add_dependency "sequel", "~> 5.0.0"
+  s.add_dependency "thor", "~> 0.20.0"
 
   if (RUBY_PLATFORM =~ /java/).nil?
     s.add_development_dependency "mysql2",  "~> 0.4.10"
