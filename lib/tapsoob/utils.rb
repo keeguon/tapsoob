@@ -155,7 +155,7 @@ Data : #{data}
     end
 
     def schema_bin(*args)
-      bin_path = File.expand_path("#{File.dirname(__FILE__)}/../../bin/#{bin('schema')}")
+      bin_path = File.expand_path("#{File.dirname(__FILE__)}/../../bin/#{bin('tapsoob schema')}")
       `#{Gem.ruby} -S "#{bin_path}" #{args.map { |a| "'#{a}'" }.join(' ') }`
     end
 

@@ -3,6 +3,7 @@ config/
 coverage/
 db/
 dist/
+lib/java/
 *.dat
 *.gem
 *.lock
