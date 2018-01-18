@@ -270,7 +270,7 @@ module Tapsoob
         return eval(state[:klass]).new(db, state)
       end
 
-      if Taps::Utils.single_integer_primary_key(db, state[:table_name].to_sym)
+      if Tapsoob::Utils.single_integer_primary_key(db, state[:table_name].to_sym)
         DataStreamKeyed.new(db, state)
       else
         DataStream.new(db, state)

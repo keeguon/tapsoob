@@ -221,7 +221,7 @@ module Tapsoob
     rescue Exception => ex
       case ex.message
       when /integer out of range/ then
-        raise Taps::InvalidData, <<-ERROR, []
+        raise Tapsoob::InvalidData, <<-ERROR, []
   \nDetected integer data that exceeds the maximum allowable size for an integer type.
   This generally occurs when importing from SQLite due to the fact that SQLite does
   not enforce maximum values on integer types.
