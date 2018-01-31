@@ -25,7 +25,7 @@ Gem::Specification.new do |s|
 
   if (RUBY_PLATFORM =~ /java/).nil?
     s.add_development_dependency "mysql2",  "~> 0.4.10"
-    s.add_development_dependency "pg",      "~> 1.0.0"
+    s.add_development_dependency "pg",      "~> 0.21.0"
     s.add_development_dependency "sqlite3", "~> 1.3.11"
   else
     s.platform = 'java'
