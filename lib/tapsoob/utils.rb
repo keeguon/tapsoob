@@ -154,10 +154,12 @@ Data : #{data}
       Tapsoob::Schema.load_indexes(database_url, index)
     end
 
-    def schema_bin(*args)
-      bin_path   = File.expand_path("#{File.dirname(__FILE__)}/../../bin/#{bin('tapsoob')}")
+    def schema_bin(command, *args)
+      require 'tapsoob/cli'
       subcommand = "schema"
-      `#{Gem.ruby} -S "#{bin_path}" "#{subcommand}" #{args.map { |a| "'#{a}'" }.join(' ') }`
+      script = Tapsoob::CLI::Schema.new
+      script.invoke(command, args.map { |a| "'#{a}'" })
+      #`#{Gem.ruby} -S "#{bin_path}" "#{subcommand}" #{args.map { |a| "'#{a}'" }.join(' ') }`
     end
 
     def primary_key(db, table)
