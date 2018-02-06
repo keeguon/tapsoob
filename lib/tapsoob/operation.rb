@@ -1,9 +1,10 @@
 # -*- encoding : utf-8 -*-
 require 'sequel'
 
+require 'tapsoob/data_stream'
+require 'tapsoob/log'
 require 'tapsoob/progress_bar'
 require 'tapsoob/schema'
-require 'tapsoob/data_stream'
 
 module Tapsoob
   class Operation
@@ -113,6 +114,7 @@ module Tapsoob
 
     def db
       @db ||= Sequel.connect(database_url)
+      @db.loggers << Tapsoob.log if opts[:debug]
 
       # Set parameters
       if @db.uri =~ /oracle/i
