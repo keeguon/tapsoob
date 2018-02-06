@@ -158,8 +158,7 @@ Data : #{data}
       require 'tapsoob/cli'
       subcommand = "schema"
       script = Tapsoob::CLI::Schema.new
-      script.invoke(command, args.map { |a| "'#{a}'" })
-      #`#{Gem.ruby} -S "#{bin_path}" "#{subcommand}" #{args.map { |a| "'#{a}'" }.join(' ') }`
+      script.invoke(command, args.map { |a| "#{a}" })
     end
 
     def primary_key(db, table)
