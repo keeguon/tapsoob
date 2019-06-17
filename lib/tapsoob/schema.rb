@@ -67,7 +67,7 @@ END_MIG
       Sequel.connect(database_url) do |db|
         db.extension :schema_dumper
         klass = eval(schema)
-        klass.apply(db, :down)
+        #klass.apply(db, :down)
         klass.apply(db, :up)
       end
     end
