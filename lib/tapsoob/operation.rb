@@ -10,7 +10,7 @@ module Tapsoob
   class Operation
     attr_reader :database_url, :dump_path, :opts
 
-    def initialize(database_url, dump_path, opts={})
+    def initialize(database_url, dump_path = nil, opts={})
       @database_url = database_url
       @dump_path    = dump_path
       @opts         = opts
@@ -55,12 +55,13 @@ module Tapsoob
     end
 
     def log
+      Tapsoob.log.level = Logger::DEBUG if opts[:debug]
       Tapsoob.log
     end
 
     def store_session
       file = "#{file_prefix}_#{Time.now.strftime("%Y%m%d%H%M")}.dat"
-      puts "\nSaving session to #{file}..."
+      log.info "\nSaving session to #{file}..."
       File.open(file, 'w') do |f|
         f.write(JSON.generate(to_hash))
       end
@@ -174,7 +175,7 @@ module Tapsoob
     end
 
     def pull_schema
-      puts "Receiving schema"
+      log.info "Receiving schema"
 
       progress = ProgressBar.new('Schema', tables.size)
       tables.each do |table_name, count|
@@ -188,12 +189,12 @@ module Tapsoob
     end
 
     def pull_data
-      puts "Receiving data"
+      log.info "Receiving data"
 
-      puts "#{tables.size} tables, #{format_number(record_count)} records"
+      log.info "#{tables.size} tables, #{format_number(record_count)} records"
 
       tables.each do |table_name, count|
-        progress = ProgressBar.new(table_name.to_s, count)
+        progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, count) : nil)
         stream   = Tapsoob::DataStream.factory(db, {
           :chunksize  => default_chunksize,
           :table_name => table_name
@@ -207,9 +208,9 @@ module Tapsoob
 
       table_name = stream_state[:table_name]
       record_count = tables[table_name.to_s]
-      puts "Resuming #{table_name}, #{format_number(record_count)} records"
+      log.info "Resuming #{table_name}, #{format_number(record_count)} records"
 
-      progress = ProgressBar.new(table_name.to_s, record_count)
+      progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, record_count) : nil)
       stream = Tapsoob::DataStream.factory(db, stream_state)
       pull_data_from_table(stream, progress)
     end
@@ -219,19 +220,25 @@ module Tapsoob
         begin
           exit 0 if exiting?
 
-          size = stream.fetch_database(dump_path)
+          size = stream.fetch_database do |rows|
+            if dump_path.nil?
+              p rows
+            else
+              Tapsoob::Utils.export_rows(dump_path, stream.table_name, rows)
+            end
+          end
           break if stream.complete?
-          progress.inc(size) unless exiting?
+          progress.inc(size) if progress && !exiting?
           stream.error = false
           self.stream_state = stream.to_hash
         rescue Tapsoob::CorruptedData => e
-          puts "Corrupted Data Received #{e.message}, retrying..."
+          log.info "Corrupted Data Received #{e.message}, retrying..."
           stream.error = true
           next
         end
       end
 
-      progress.finish
+      progress.finish if progress
       completed_tables << stream.table_name.to_s
       self.stream_state = {}
     end
@@ -280,7 +287,7 @@ module Tapsoob
     end
 
     def pull_indexes
-      puts "Receiving indexes"
+      log.info "Receiving indexes"
 
       raw_idxs = Tapsoob::Utils.schema_bin(:indexes_individual, database_url)
       idxs     = (raw_idxs && raw_idxs.length >= 2 ? JSON.parse(raw_idxs) : {})
@@ -298,7 +305,7 @@ module Tapsoob
     end
 
     def pull_reset_sequences
-      puts "Resetting sequences"
+      log.info "Resetting sequences"
 
       output = Tapsoob::Utils.schema_bin(:reset_db_sequences, database_url)
       puts output if output
@@ -337,7 +344,7 @@ module Tapsoob
 
       return unless idxs.size > 0
 
-      puts "Sending indexes"
+      log.info "Sending indexes"
 
       apply_table_filter(idxs).each do |table, indexes|
         next unless indexes.size > 0
@@ -351,7 +358,7 @@ module Tapsoob
     end
 
     def push_schema
-      puts "Sending schema"
+      log.info "Sending schema"
 
       progress = ProgressBar.new('Schema', tables.size)
       tables.each do |table, count|
@@ -363,7 +370,7 @@ module Tapsoob
     end
 
     def push_reset_sequences
-      puts "Resetting sequences"
+      log.info "Resetting sequences"
 
       Tapsoob::Utils.schema_bin(:reset_db_sequences, database_url)
     end
@@ -373,16 +380,16 @@ module Tapsoob
 
       table_name = stream_state[:table_name]
       record_count = tables[table_name.to_s]
-      puts "Resuming #{table_name}, #{format_number(record_count)} records"
+      log.info "Resuming #{table_name}, #{format_number(record_count)} records"
       progress = ProgressBar.new(table_name.to_s, record_count)
       stream = Tapsoob::DataStream.factory(db, stream_state)
       push_data_from_file(stream, progress)
     end
 
     def push_data
-      puts "Sending data"
+      log.info "Sending data"
 
-      puts "#{tables.size} tables, #{format_number(record_count)} records"
+      log.info "#{tables.size} tables, #{format_number(record_count)} records"
 
       tables.each do |table_name, count|
         next unless File.exists?(File.join(dump_path, "data", "#{table_name}.json"))

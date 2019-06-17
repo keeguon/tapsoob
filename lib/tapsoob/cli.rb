@@ -14,5 +14,5 @@ end
 
 # CLI modules
 require_relative 'cli/schema'
-require_relative 'cli/data'
+require_relative 'cli/data_stream'
 require_relative 'cli/root'

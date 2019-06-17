@@ -70,7 +70,7 @@ Data : #{data}
         end
         header.collect { |h| row[h] }
       end
-      { :header => header, :data => only_data }
+      { table_name: table, header: header, data: only_data }
     end
 
     # mysql text and blobs fields are handled the same way internally

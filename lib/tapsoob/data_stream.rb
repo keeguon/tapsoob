@@ -87,8 +87,9 @@ module Tapsoob
       ds = JSON.parse(File.read(File.join(dump_path, "data", "#{table_name}.json")))
       log.debug "DataStream#fetch_file"
       rows = {
-        :header => ds["header"],
-        :data   => ds["data"][state[:offset], (state[:offset] + state[:chunksize])] || [ ]
+        :table_name => ds["table_name"],
+        :header     => ds["header"],
+        :data       => ds["data"][state[:offset], (state[:offset] + state[:chunksize])] || [ ]
       }
       update_chunksize_stats
       rows
@@ -141,7 +142,7 @@ module Tapsoob
       @complete
     end
 
-    def fetch_database(dump_path)
+    def fetch_database
       params = fetch_from_database
       encoded_data = params[:encoded_data]
       json = params[:json]
@@ -154,7 +155,7 @@ module Tapsoob
       state.merge!(json[:state].merge(:chunksize => state[:chunksize]))
 
       unless @complete
-        Tapsoob::Utils.export_rows(dump_path, table_name, rows)
+        yield rows if block_given?
         state[:offset] += rows[:data].size
         rows[:data].size
       else

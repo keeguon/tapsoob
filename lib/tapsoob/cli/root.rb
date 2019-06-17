@@ -57,6 +57,9 @@ module Tapsoob
       desc "schema SUBCOMMAND ...ARGS", "Direct access to Tapsoob::Schema class methods"
       subcommand "schema", Schema
 
+      desc "data SUBCOMMAND ...ARGS", "Pull/Push data with internal Tapsoob classes"
+      subcommand "data", DataStream
+
       private
         def parse_opts(options)
           # Default options

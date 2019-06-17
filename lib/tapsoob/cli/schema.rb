@@ -1,3 +1,8 @@
+require 'thor'
+require 'sequel'
+
+require_relative '../schema'
+
 module Tapsoob
   module CLI
     class Schema < Thor
