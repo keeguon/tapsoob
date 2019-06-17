@@ -45,12 +45,17 @@ module Tapsoob
 
         # import data
         data.each do |table|
-          p table
           stream = Tapsoob::DataStream.factory(db(database_url, opts), {
             table_name: table[:table_name],
-            chunksize: opts[:default_chunksize]
+            chunksize: opts[:default_chunksize],
+            debug: opts[:debug]
           })
-          stream.import_rows(table)
+
+          begin
+            stream.import_rows(table)
+          rescue Exception => e
+            stream.log.debug e.message
+          end
         end
       end
 

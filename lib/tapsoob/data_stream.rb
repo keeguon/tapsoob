@@ -21,6 +21,7 @@ module Tapsoob
     end
 
     def log
+      Tapsoob.log.level = Logger::DEBUG if state[:debug]
       Tapsoob.log
     end
 
