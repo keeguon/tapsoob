@@ -42,7 +42,7 @@ module Tapsoob
       desc "load DATABASE_URL [FILENAME]", "Load a database schema from a file to a database using a database URL"
       def load(database_url, filename = nil)
         schema = if filename && File.exists?(filename)
-          File.read(file)
+          File.read(filename)
         else
           STDIN.read
         end
@@ -57,7 +57,7 @@ module Tapsoob
       desc "load_indexes DATABASE_URL [FILENAME]", "Load indexes from a file to a database using a database URL"
       def load_indexes(database_url, filename = nil)
         indexes = if filename && File.exists?(filename)
-          File.read(file)
+          File.read(filename)
         else
           STDIN.read
         end
