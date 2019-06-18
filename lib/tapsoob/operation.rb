@@ -222,7 +222,7 @@ module Tapsoob
 
           size = stream.fetch_database do |rows|
             if dump_path.nil?
-              p rows
+              puts JSON.generate(rows)
             else
               Tapsoob::Utils.export_rows(dump_path, stream.table_name, rows)
             end

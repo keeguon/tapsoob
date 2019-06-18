@@ -39,8 +39,7 @@ module Tapsoob
           files = Dir[Pathname.new(dump_path).join("*.json")]
           files.each { |file| data << JSON.parse(File.read(file)) }
         else
-          lines = STDIN.read.split("\n")
-          lines.each { |line| data << eval(line) }
+          STDIN.each_line { |line| data << JSON.parse(line, symbolize_names: true) }
         end
 
         # import data
