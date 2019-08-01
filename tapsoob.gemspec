@@ -20,6 +20,7 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   # Dependencies
+  s.add_dependency "ripl", "~> 0.7.1"
   s.add_dependency "sequel", "~> 5.21.0"
   s.add_dependency "thor", "~> 0.20.3"
 

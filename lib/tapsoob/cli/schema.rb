@@ -9,9 +9,8 @@ module Tapsoob
       desc "console DATABASE_URL", "Create an IRB REPL connected to a database"
       def console(database_url)
         $db = Sequel.connect(database_url)
-        require 'irb'
-        require 'irb/completion'
-        IRB.start
+        require 'ripl'
+        Ripl.start binding: binding
       end
 
       desc "dump DATABASE_URL", "Dump a database using a database URL"
