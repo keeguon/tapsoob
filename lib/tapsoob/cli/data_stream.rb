@@ -37,7 +37,7 @@ module Tapsoob
         # read data from dump_path or from STDIN
         if dump_path && Dir.exists?(dump_path)
           files = Dir[Pathname.new(dump_path).join("*.json")]
-          files.each { |file| data << JSON.parse(File.read(file)) }
+          files.each { |file| data << JSON.parse(File.read(file), symbolize_names: true) }
         else
           STDIN.each_line { |line| data << JSON.parse(line, symbolize_names: true) }
         end
