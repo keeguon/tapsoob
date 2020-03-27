@@ -2,6 +2,7 @@
 require 'sequel'
 require 'sequel/extensions/schema_dumper'
 require 'sequel/extensions/migration'
+require 'erb'
 require 'json'
 
 module Tapsoob
@@ -11,7 +12,23 @@ module Tapsoob
     def dump(database_url)
       db = Sequel.connect(database_url)
       db.extension :schema_dumper
-      db.dump_schema_migration(:indexes => false)
+      template = ERB.new <<-END_MIG
+Class.new(Sequel::Migration) do
+  def up
+  <% db.tables.each do |table| %>
+    <%= db.dump_table_schema(table, indexes: false) %>
+  <% end %>
+  end
+
+  def down
+  <% db.tables.each do |table| %>
+    drop_table("<%= table %>", if_exists: true)
+  <% end %>
+  end
+end
+END_MIG
+
+      template.result(binding)
     end
 
     def dump_table(database_url, table)
@@ -21,7 +38,7 @@ module Tapsoob
         <<END_MIG
 Class.new(Sequel::Migration) do
   def up
-    #{db.dump_table_schema(table, :indexes => false)}
+    #{db.dump_table_schema(table, indexes: false)}
   end
 
   def down
