@@ -63,11 +63,11 @@ END_MIG
       JSON.generate(idxs)
     end
 
-    def load(database_url, schema)
+    def load(database_url, schema, options = { drop: false })
       Sequel.connect(database_url) do |db|
         db.extension :schema_dumper
         klass = eval(schema)
-        #klass.apply(db, :down)
+        klass.apply(db, :down) if options[:drop]
         klass.apply(db, :up)
       end
     end
