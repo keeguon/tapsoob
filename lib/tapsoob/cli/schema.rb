@@ -39,7 +39,7 @@ module Tapsoob
       end
 
       desc "load DATABASE_URL [FILENAME]", "Load a database schema from a file to a database using a database URL"
-      option :drop, type: boolean, default: false
+      option :drop, type: :boolean, default: false
       def load(database_url, filename = nil)
         schema = if filename && File.exists?(filename)
           File.read(filename)
