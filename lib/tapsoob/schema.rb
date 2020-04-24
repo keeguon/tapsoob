@@ -84,7 +84,16 @@ END_MIG
       Sequel.connect(database_url) do |db|
         db.extension :schema_dumper
         klass = eval(schema)
-        klass.apply(db, :down) if options[:drop]
+        if options[:drop]
+          # Start special hack for MySQL
+          db.run("SET foreign_key_checks = 0") if [:mysql, :mysql2].include?(db.adapter_scheme)
+
+          # Run down migration
+          klass.apply(db, :down)
+
+          # End special hack for MySQL
+          db.run("SET foreign_key_checks = 1") if [:mysql, :mysql2].include?(db.adapter_scheme)
+        end
         klass.apply(db, :up)
       end
     end
