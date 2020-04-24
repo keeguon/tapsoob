@@ -36,6 +36,23 @@ You can list all available options using the command:
     tapsoob push -h
 
 
+## NEW : Piping your schema/indexes/data
+
+Due to some needs we added ways to pipe your schema/indexes/data directly from one database to another, here's an equivalent of the export/import process described above using this technique :
+
+```
+tapsoob schema dump <db_source_url> | tapsoob schema load <db_target_url> --drop=true
+tapsoob schema indexes <db_source_url> | tapsoob schema load_indexes <db_target_url>
+tapsoob data pull <db_source_url> -p false | tapsoob data push <db_target_url>
+tapsoob schema reset_db_sequences <db_target_url>
+```
+
+A few notes here :
+
+* the `--drop` option for the `schema load` command defaults to false, if you don't intend to drop your tables on your target databases you can ommit it (if a table already exists tapsoob will exit w/ an error) ;
+* the `data pull` and `data push` commands are new and have a few options that you can display w/ `tapsoob data <pull|push> -h`, by defaults it prints the progress of your data extraction/import but if you want to pipe directly your export into another database you'll have to set the `--progress` (shorthand `-p`) option to `false` (or `--no-progress`) as above ;
+* resetting database sequences is important as a `data push` command doesn't handle that directly.
+
 ## Integration with Rails
 
 If you're using Rails, there's also two Rake tasks provided:
