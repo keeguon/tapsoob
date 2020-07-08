@@ -51,7 +51,7 @@ module Tapsoob
 
       header = data[0].keys
       only_data = data.collect do |row|
-        row = blobs_to_string(row, string_columns)
+        row = encode_blobs(row, string_columns)
         row.each do |column, data|
           if data.to_s.length > (max_lengths[column] || data.to_s.length)
             raise Tapsoob::InvalidData.new(<<-ERROR)
@@ -70,27 +70,33 @@ Data : #{data}
         end
         header.collect { |h| row[h] }
       end
-      { table_name: table, header: header, data: only_data }
+
+      res = { table_name: table, header: header, data: only_data }
+
+      # Add types if schema isn't empty
+      res[:types] = schema.map { |c| c.last[:type] } unless schema.empty?
+
+      res
     end
 
     # mysql text and blobs fields are handled the same way internally
     # this is not true for other databases so we must check if the field is
     # actually text and manually convert it back to a string
     def incorrect_blobs(db, table)
-      return [] if (db.url =~ /mysql:\/\//).nil?
+      return [] if (db.url =~ /(mysql|mysql2):\/\//).nil?
 
       columns = []
       db.schema(table).each do |data|
         column, cdata = data
-        columns << column if cdata[:db_type] =~ /text/
+        columns << column if cdata[:type] == :blob
       end
       columns
     end
 
-    def blobs_to_string(row, columns)
+    def encode_blobs(row, columns)
       return row if columns.size == 0
       columns.each do |c|
-        row[c] = row[c].to_s if row[c].kind_of?(Sequel::SQL::Blob)
+        row[c] = base64encode(row[c]) unless row[c].nil?
       end
       row
     end

@@ -218,6 +218,16 @@ module Tapsoob
     end
 
     def import_rows(rows)
+      # Decode blobs
+      if rows.has_key?(:types) && rows[:types].include?("blob")
+        blob_indices = rows[:types].each_index.select { |idx| rows[:types][idx] == "blob" }
+        rows[:data].each_index do |idx|
+          blob_indices.each do |bi|
+            rows[:data][idx][bi] = Sequel::SQL::Blob.new(Tapsoob::Utils.base64decode(rows[:data][idx][bi])) unless rows[:data][idx][bi].nil?
+          end
+        end
+      end
+      
       table.import(rows[:header], rows[:data], :commit_every => 100)
       state[:offset] += rows[:data].size
     rescue Exception => ex
