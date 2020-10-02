@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
 
   # Dependencies
   s.add_dependency "ripl", "~> 0.7.1"
-  s.add_dependency "sequel", "~> 5.36.0"
+  s.add_dependency "sequel", "~> 5.37.0"
   s.add_dependency "thor", "~> 1.0.1"
 
   if (RUBY_PLATFORM =~ /java/).nil?
