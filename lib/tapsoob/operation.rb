@@ -477,7 +477,7 @@ module Tapsoob
 
     def fetch_local_tables_info
       tables_with_counts = {}
-      tbls = Dir.glob(File.join(dump_path, "schemas", "*")).map { |path| File.basename(path, ".rb") }
+      tbls = Dir.glob(File.join(dump_path, "data", "*")).map { |path| File.basename(path, ".json") }
       tbls.each do |table|
         if File.exists?(File.join(dump_path, "data", "#{table}.json"))
           data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
