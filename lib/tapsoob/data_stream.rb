@@ -219,6 +219,9 @@ module Tapsoob
     end
 
     def import_rows(rows)
+      columns = rows[:header]
+      data    = rows[:data]
+
       # Decode blobs
       if rows.has_key?(:types) && rows[:types].include?("blob")
         blob_indices = rows[:types].each_index.select { |idx| rows[:types][idx] == "blob" }
@@ -230,9 +233,12 @@ module Tapsoob
       end
 
       # Remove id column
-      columns = ((@options[:"discard-identity"] && rows[:header].include?("id")) ? rows[:header] - ["id"] : rows[:header])
+      if @options[:"discard-identity"]
+        columns = rows[:header] - ["id"]
+        data    = data.map { |d| d[1..-1] }
+      end
       
-      table.import(columns, rows[:data], :commit_every => 100)
+      table.import(columns, data, :commit_every => 100)
       state[:offset] += rows[:data].size
     rescue Exception => ex
       case ex.message
