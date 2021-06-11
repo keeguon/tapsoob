@@ -38,6 +38,7 @@ module Tapsoob
       option :filter, desc: "Regex Filter for tables", type: :string, aliases: "-f"
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
+      option :purge, desc: "Purge data in tables prior to performing the import", default: false, type: :boolean, aliases: "-p"
       option :debug, desc: "Enable debug messages", default: false, type: :boolean, aliases: "-d"
       def push(dump_path, database_url)
         opts = parse_opts(options)
@@ -69,6 +70,9 @@ module Tapsoob
             disable_compression: options[:"disable-compression"],
             debug: options[:debug]
           }
+
+          # Purge (push only)
+          opts[:purge] = options[:purge] if options.key?(:purge)
 
           # Resume
           if options[:resume]

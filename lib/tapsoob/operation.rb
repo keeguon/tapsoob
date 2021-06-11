@@ -393,6 +393,7 @@ module Tapsoob
 
       tables.each do |table_name, count|
         next unless File.exists?(File.join(dump_path, "data", "#{table_name}.json"))
+        db[table_name.to_sym].truncate if @opts[:purge]
         stream = Tapsoob::DataStream.factory(db,
           :table_name => table_name,
           :chunksize => default_chunksize)
