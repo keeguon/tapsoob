@@ -239,7 +239,7 @@ module Tapsoob
             type_indices = rows[:types].each_index.select { |idx| rows[:types][idx] == type }
             rows[:data].each_index do |idx|
               type_indices.each do |ti|
-                rows[:data][idx][ti] = Sequel.send("string_to_#{type}".to_sym, rows[:data][idx][ti])
+                rows[:data][idx][ti] = Sequel.send("string_to_#{type}".to_sym, rows[:data][idx][ti]).strftime("%Y-%m-%d %H:%M:%S")
               end
             end
           end
