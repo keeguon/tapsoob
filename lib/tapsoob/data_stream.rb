@@ -1,4 +1,7 @@
 # -*- encoding : utf-8 -*-
+require 'date'
+require 'time'
+
 require 'tapsoob/log'
 require 'tapsoob/utils'
 
@@ -228,6 +231,30 @@ module Tapsoob
         rows[:data].each_index do |idx|
           blob_indices.each do |bi|
             rows[:data][idx][bi] = Sequel::SQL::Blob.new(Tapsoob::Utils.base64decode(rows[:data][idx][bi])) unless rows[:data][idx][bi].nil?
+          end
+        end
+      end
+
+      # Parse date/datetime/time columns
+      if rows.has_key?(:types)
+        %w(date datetime time).each do |type|
+          if rows[:types].include?(type)
+            klass = case type
+            when "date"
+              Date
+            when "datetime"
+              DateTime
+            when "time"
+              Time
+            end
+
+
+            type_indices = rows[:types].each_index.select { |idx| rows[:types][idx] == type }
+            rows[:data].each_index do |idx|
+              type_indices.each do |ti|
+                rows[:data][idx][ti] = klass.parse(rows[:data][idx][ti])
+              end
+            end
           end
         end
       end
