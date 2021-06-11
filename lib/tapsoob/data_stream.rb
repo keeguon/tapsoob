@@ -230,7 +230,7 @@ module Tapsoob
       end
 
       # Remove id column
-      columns = ((@options[:"discard-identity"] && rows[:headers].include?("id")) ? rows[:headers] - ["id"] : rows[:headers])
+      columns = ((@options[:"discard-identity"] && rows[:header].include?("id")) ? rows[:header] - ["id"] : rows[:header])
       
       table.import(columns, rows[:data], :commit_every => 100)
       state[:offset] += rows[:data].size
