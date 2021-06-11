@@ -6,9 +6,9 @@ module Tapsoob
   class DataStream
     DEFAULT_CHUNKSIZE = 1000
 
-    attr_reader :db, :state
+    attr_reader :db, :state, :options
 
-    def initialize(db, state)
+    def initialize(db, state, opts = {})
       @db = db
       @state = {
         :offset          => 0,
@@ -17,6 +17,7 @@ module Tapsoob
         :total_chunksize => 0
       }.merge(state)
       @state[:chunksize] ||= DEFAULT_CHUNKSIZE
+      @options = opts
       @complete = false
     end
 
@@ -227,8 +228,11 @@ module Tapsoob
           end
         end
       end
+
+      # Remove id column
+      columns = ((@options[:"discard-identity"] && rows[:headers].include?("id")) ? rows[:headers] - ["id"] : rows[:headers])
       
-      table.import(rows[:header], rows[:data], :commit_every => 100)
+      table.import(columns, rows[:data], :commit_every => 100)
       state[:offset] += rows[:data].size
     rescue Exception => ex
       case ex.message
