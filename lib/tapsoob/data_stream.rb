@@ -1,7 +1,4 @@
 # -*- encoding : utf-8 -*-
-require 'date'
-require 'time'
-
 require 'tapsoob/log'
 require 'tapsoob/utils'
 
@@ -239,20 +236,10 @@ module Tapsoob
       if rows.has_key?(:types)
         %w(date datetime time).each do |type|
           if rows[:types].include?(type)
-            klass = case type
-            when "date"
-              Date
-            when "datetime"
-              DateTime
-            when "time"
-              Time
-            end
-
-
             type_indices = rows[:types].each_index.select { |idx| rows[:types][idx] == type }
             rows[:data].each_index do |idx|
               type_indices.each do |ti|
-                rows[:data][idx][ti] = klass.parse(rows[:data][idx][ti])
+                rows[:data][idx][ti] = Sequel.send("string_to_#{type}".to_sym, rows[:data][idx][ti])
               end
             end
           end
