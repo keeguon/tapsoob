@@ -250,19 +250,19 @@ module Tapsoob
       state[:offset] = table.count
     end
 
-    def self.factory(db, state)
+    def self.factory(db, state, opts)
       if defined?(Sequel::MySQL) && Sequel::MySQL.respond_to?(:convert_invalid_date_time=)
         Sequel::MySQL.convert_invalid_date_time = :nil
       end
 
       if state.has_key?(:klass)
-        return eval(state[:klass]).new(db, state)
+        return eval(state[:klass]).new(db, state, opts)
       end
 
       if Tapsoob::Utils.single_integer_primary_key(db, state[:table_name].to_sym)
-        DataStreamKeyed.new(db, state)
+        DataStreamKeyed.new(db, state, opts)
       else
-        DataStream.new(db, state)
+        DataStream.new(db, state, opts)
       end
     end
   end
@@ -270,8 +270,8 @@ module Tapsoob
   class DataStreamKeyed < DataStream
     attr_accessor :buffer
 
-    def initialize(db, state)
-      super(db, state)
+    def initialize(db, state, opts = {})
+      super(db, state, opts)
       @state = { :primary_key => order_by(state[:table_name]).first, :filter => 0 }.merge(@state)
       @state[:chunksize] ||= DEFAULT_CHUNKSIZE
       @buffer = []
