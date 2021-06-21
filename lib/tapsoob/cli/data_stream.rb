@@ -28,6 +28,8 @@ module Tapsoob
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :progress, desc: "Show progress", default: true, type: :boolean, aliases: "-p"
+      option :purge, desc: "Purge data in tables prior to performing the import", default: false, type: :boolean, aliases: "-p"
+      option :"discard-identity", desc: "Remove identity when pushing data (may result in creating duplicates)", default: false, type: :boolean
       option :debug, desc: "Enable debug messages", default: false, type: :boolean, aliases: "-d"
       def push(database_url, dump_path = nil)
         # instantiate stuff
@@ -46,9 +48,8 @@ module Tapsoob
         data.each do |table|
           stream = Tapsoob::DataStream.factory(db(database_url, opts), {
             table_name: table[:table_name],
-            chunksize: opts[:default_chunksize],
-            debug: opts[:debug]
-          })
+            chunksize: opts[:default_chunksize]
+          }, { :"discard-identity" => opts[:"discard-identity"] || false, :purge => opts[:purge] || false, :debug => opts[:debug] })
 
           begin
             stream.import_rows(table)
@@ -65,6 +66,10 @@ module Tapsoob
             progress: options[:progress],
             debug: options[:debug]
           }
+
+          # Push only options
+          opts[:purge] = options[:purge] if options.key?(:purge)
+          opts[:"discard-identity"] = options[:"discard-identity"] if options.key?(:"discard-identity")
 
           # Default chunksize
           if options[:chunksize]

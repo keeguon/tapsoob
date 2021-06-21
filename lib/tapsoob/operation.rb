@@ -198,7 +198,7 @@ module Tapsoob
         stream   = Tapsoob::DataStream.factory(db, {
           :chunksize  => default_chunksize,
           :table_name => table_name
-        })
+        }, { :debug => opts[:debug] }))
         pull_data_from_table(stream, progress)
       end
     end
@@ -393,10 +393,10 @@ module Tapsoob
 
       tables.each do |table_name, count|
         next unless File.exists?(File.join(dump_path, "data", "#{table_name}.json"))
-        db[table_name.to_sym].truncate if @opts[:purge]
+        db[table.to_sym].truncate if @opts[:purge]
         stream = Tapsoob::DataStream.factory(db, {
           :table_name => table_name,
-          :chunksize => default_chunksize }, { :"discard-identity" => @opts[:"discard-identity"] || false })
+          :chunksize => default_chunksize }, { :"discard-identity" => opts[:"discard-identity"] || false, :purge => opts[:purge] || false, :debug => opts[:debug] })
         progress = ProgressBar.new(table_name.to_s, count)
         push_data_from_file(stream, progress)
       end
@@ -429,7 +429,8 @@ module Tapsoob
               }
             end
 
-            size = stream.fetch_data_in_database({ :encoded_data => encoded_data, :checksum => data[:checksum] })
+            row_size = stream.fetch_data_in_database({ :encoded_data => encoded_data, :checksum => data[:checksum] })
+            log.debug "row size: #{row_size}"
             self.stream_state = stream.to_hash
 
             c.idle_secs = (d1 + d2)
@@ -481,7 +482,7 @@ module Tapsoob
       tbls.each do |table|
         if File.exists?(File.join(dump_path, "data", "#{table}.json"))
           data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
-          tables_with_counts[table] = data.size
+          tables_with_counts[table] = data["data"].size
         else
           tables_with_counts[table] = 0
         end

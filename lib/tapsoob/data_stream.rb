@@ -91,7 +91,8 @@ module Tapsoob
       rows = {
         :table_name => ds["table_name"],
         :header     => ds["header"],
-        :data       => ds["data"][state[:offset], (state[:offset] + state[:chunksize])] || [ ]
+        :data       => (ds["data"][state[:offset], (state[:offset] + state[:chunksize])] || [ ]),
+        :types      => ds["types"]
       }
       update_chunksize_stats
       rows
@@ -222,12 +223,24 @@ module Tapsoob
       columns = rows[:header]
       data    = rows[:data]
 
+      # Only import existing columns
+      if table.columns.size != columns.size
+        existing_columns        = table.columns.map(&:to_s)
+        additional_columns      = columns - existing_columns
+        additional_columns_idxs = additional_columns.map { |c| columns.index(c) }
+        additional_columns_idxs.reverse.each do |idx|
+          columns.delete_at(idx)
+          rows[:types].delete_at(idx)
+        end
+        data.each_index { |didx| additional_columns_idxs.reverse.each { |idx| data[didx].delete_at(idx) } }
+      end
+
       # Decode blobs
       if rows.has_key?(:types) && rows[:types].include?("blob")
         blob_indices = rows[:types].each_index.select { |idx| rows[:types][idx] == "blob" }
-        rows[:data].each_index do |idx|
+        data.each_index do |idx|
           blob_indices.each do |bi|
-            rows[:data][idx][bi] = Sequel::SQL::Blob.new(Tapsoob::Utils.base64decode(rows[:data][idx][bi])) unless rows[:data][idx][bi].nil?
+            data[idx][bi] = Sequel::SQL::Blob.new(Tapsoob::Utils.base64decode(data[idx][bi])) unless data[idx][bi].nil?
           end
         end
       end
@@ -237,9 +250,9 @@ module Tapsoob
         %w(date datetime time).each do |type|
           if rows[:types].include?(type)
             type_indices = rows[:types].each_index.select { |idx| rows[:types][idx] == type }
-            rows[:data].each_index do |idx|
+            data.each_index do |idx|
               type_indices.each do |ti|
-                rows[:data][idx][ti] = Sequel.send("string_to_#{type}".to_sym, rows[:data][idx][ti]).strftime("%Y-%m-%d %H:%M:%S")
+                data[idx][ti] = Sequel.send("string_to_#{type}".to_sym, data[idx][ti]) unless data[idx][ti].nil?
               end
             end
           end
@@ -247,11 +260,11 @@ module Tapsoob
       end
 
       # Remove id column
-      if @options[:"discard-identity"]
+      if @options[:"discard-identity"] && rows[:header].include?("id")
         columns = rows[:header] - ["id"]
         data    = data.map { |d| d[1..-1] }
       end
-      
+
       table.import(columns, data, :commit_every => 100)
       state[:offset] += rows[:data].size
     rescue Exception => ex
