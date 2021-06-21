@@ -198,7 +198,7 @@ module Tapsoob
         stream   = Tapsoob::DataStream.factory(db, {
           :chunksize  => default_chunksize,
           :table_name => table_name
-        }, { :debug => opts[:debug] }))
+        }, { :debug => opts[:debug] })
         pull_data_from_table(stream, progress)
       end
     end
