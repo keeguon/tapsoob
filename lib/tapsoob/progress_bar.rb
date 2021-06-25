@@ -22,7 +22,7 @@ class ProgressBar
     @current = 0
     @previous = 0
     @finished_p = false
-    @start_time = Time.now
+    @start_time = ::Time.now
     @previous_time = @start_time
     @title_width = 14
     @format = "%-#{@title_width}s %3d%% %s %s"
@@ -76,7 +76,7 @@ class ProgressBar
   end
 
   def transfer_rate
-    bytes_per_second = @current.to_f / (Time.now - @start_time)
+    bytes_per_second = @current.to_f / (::Time.now - @start_time)
     sprintf("%s/s", convert_bytes(bytes_per_second))
   end
 
@@ -97,14 +97,14 @@ class ProgressBar
     if @current == 0
       "ETA:  --:--:--"
     else
-      elapsed = Time.now - @start_time
+      elapsed = ::Time.now - @start_time
       eta = elapsed * @total / @current - elapsed;
       sprintf("ETA:  %s", format_time(eta))
     end
   end
 
   def elapsed
-    elapsed = Time.now - @start_time
+    elapsed = ::Time.now - @start_time
     sprintf("Time: %s", format_time(elapsed))
   end
 
@@ -155,7 +155,7 @@ class ProgressBar
       @terminal_width += width - line.length + 1
       show
     end
-    @previous_time = Time.now
+    @previous_time = ::Time.now
   end
 
   def show_if_needed
@@ -169,7 +169,7 @@ class ProgressBar
 
     # Use "!=" instead of ">" to support negative changes
     if cur_percentage != prev_percentage ||
-        Time.now - @previous_time >= 1 || @finished_p
+        ::Time.now - @previous_time >= 1 || @finished_p
       show
     end
   end

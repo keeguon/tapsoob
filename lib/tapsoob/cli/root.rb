@@ -39,6 +39,7 @@ module Tapsoob
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :purge, desc: "Purge data in tables prior to performing the import", default: false, type: :boolean, aliases: "-p"
+      option :"skip-duplicates", desc: "Remove duplicates when loading data", default: false, type: :boolean
       option :"discard-identity", desc: "Remove identity when pushing data (may result in creating duplicates)", default: false, type: :boolean
       option :debug, desc: "Enable debug messages", default: false, type: :boolean, aliases: "-d"
       def push(dump_path, database_url)
@@ -74,6 +75,7 @@ module Tapsoob
 
           # Push only options
           opts[:purge] = options[:purge] if options.key?(:purge)
+          opts[:"skip-duplicates"] = options[:"skip-duplicates"] if options.key?(:"skip-duplicates")
           opts[:"discard-identity"] = options[:"discard-identity"] if options.key?(:"discard-identity")
 
           # Resume

@@ -91,7 +91,7 @@ module Tapsoob
       rows = {
         :table_name => ds["table_name"],
         :header     => ds["header"],
-        :data       => (ds["data"][state[:offset], (state[:offset] + state[:chunksize])] || [ ]),
+        :data       => ((@options[:"skip-duplicates"] ? ds["data"].uniq : ds["data"])[state[:offset], (state[:offset] + state[:chunksize])] || [ ]),
         :types      => ds["types"]
       }
       update_chunksize_stats

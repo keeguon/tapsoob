@@ -393,10 +393,16 @@ module Tapsoob
 
       tables.each do |table_name, count|
         next unless File.exists?(File.join(dump_path, "data", "#{table_name}.json"))
-        db[table.to_sym].truncate if @opts[:purge]
+        db[table_name.to_sym].truncate if @opts[:purge]
         stream = Tapsoob::DataStream.factory(db, {
           :table_name => table_name,
-          :chunksize => default_chunksize }, { :"discard-identity" => opts[:"discard-identity"] || false, :purge => opts[:purge] || false, :debug => opts[:debug] })
+          :chunksize => default_chunksize
+        }, {
+          :"skip-duplicates" => opts[:"skip-duplicates"] || false,
+          :"discard-identity" => opts[:"discard-identity"] || false,
+          :purge => opts[:purge] || false,
+          :debug => opts[:debug]
+        })
         progress = ProgressBar.new(table_name.to_s, count)
         push_data_from_file(stream, progress)
       end
