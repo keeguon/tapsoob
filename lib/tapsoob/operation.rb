@@ -227,8 +227,6 @@ module Tapsoob
               Tapsoob::Utils.export_rows(dump_path, stream.table_name, rows)
             end
           end
-          break if stream.complete?
-          progress.inc(size) if progress && !exiting?
           stream.error = false
           self.stream_state = stream.to_hash
         rescue Tapsoob::CorruptedData => e
@@ -236,6 +234,9 @@ module Tapsoob
           stream.error = true
           next
         end
+
+        progress.inc(size) if progress && !exiting?
+        break if stream.complete?
       end
 
       progress.finish if progress
