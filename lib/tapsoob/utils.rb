@@ -1,5 +1,6 @@
 # -*- encoding : utf-8 -*-
 require 'zlib'
+require 'active_support/core_ext/file/atomic.rb'
 
 require 'tapsoob/errors'
 require 'tapsoob/chunksize'
@@ -146,7 +147,7 @@ Data : #{data}
         data[:data] = previous_data["data"] + row_data[:data]
       end
 
-      File.open(File.join(dump_path, "data", "#{table}.json"), 'w') do |file|
+      File.atomic_write(File.join(dump_path, "data", "#{table}.json")) do |file|
         file.write(JSON.generate(data))
       end
     end

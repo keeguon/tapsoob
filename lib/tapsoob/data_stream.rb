@@ -152,7 +152,7 @@ module Tapsoob
 
       rows = parse_encoded_data(encoded_data, json[:checksum])
 
-      @complete = rows == { }
+      @complete = rows[:data] == [ ]
 
       # update local state
       state.merge!(json[:state].merge(:chunksize => state[:chunksize]))
