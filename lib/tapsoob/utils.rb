@@ -144,7 +144,7 @@ Data : #{data}
       data = row_data
       if File.exists?(File.join(dump_path, "data", "#{table}.json"))
         previous_data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
-        data[:data] = (previous_data["data"].nil?  ? rown_data[:data] : previous_data["data"] + row_data[:data])
+        data[:data] = (previous_data["data"].nil?  ? row_data[:data] : previous_data["data"] + row_data[:data])
       end
 
       File.atomic_write(File.join(dump_path, "data", "#{table}.json")) do |file|
