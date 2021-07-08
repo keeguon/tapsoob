@@ -152,15 +152,15 @@ module Tapsoob
 
       rows = parse_encoded_data(encoded_data, json[:checksum])
 
-      @complete = rows[:data] == [ ]
+      @complete = rows == { }
 
       # update local state
       state.merge!(json[:state].merge(:chunksize => state[:chunksize]))
 
       unless @complete
         yield rows if block_given?
-        state[:offset] += (rows[:data].nil? ? 0 : rows[:data].size)
-        (rows[:data].nil? ? 0 : rows[:data].size)
+        state[:offset] += rows[:data].size
+        rows[:data].size
       else
         0
       end
