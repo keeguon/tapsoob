@@ -216,8 +216,6 @@ module Tapsoob
     end
 
     def pull_data_from_table(stream, progress)
-      size = 0
-
       loop do
         begin
           exit 0 if exiting?
