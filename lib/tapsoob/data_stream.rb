@@ -159,7 +159,7 @@ module Tapsoob
 
       unless @complete
         yield rows if block_given?
-        state[:offset] += rows[:data].size || 0
+        state[:offset] += (rows[:data].size.nil? ? 0 : rows[:data].size)
         rows[:data].size || 0
       else
         0
