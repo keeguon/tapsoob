@@ -393,7 +393,7 @@ module Tapsoob
       log.info "#{tables.size} tables, #{format_number(record_count)} records"
 
       tables.each do |table_name, count|
-        next unless File.exists?(File.join(dump_path, "data", "#{table_name}.json"))
+        next unless File.exists?(File.join(dump_path, "data", "#{table_name}.json")) || JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))["data"].size == 0
         db[table_name.to_sym].truncate if @opts[:purge]
         stream = Tapsoob::DataStream.factory(db, {
           :table_name => table_name,
@@ -485,7 +485,7 @@ module Tapsoob
 
     def fetch_local_tables_info
       tables_with_counts = {}
-      tbls = Dir.glob(File.join(dump_path, "data", "*")).map { |path| File.basename(path, ".json") }
+      tbls = Dir.glob(File.join(dump_path, "schemas", "*")).map { |path| File.basename(path, ".rb") }
       tbls.each do |table|
         if File.exists?(File.join(dump_path, "data", "#{table}.json"))
           data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
