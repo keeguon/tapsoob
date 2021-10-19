@@ -79,8 +79,12 @@ Data : #{data}
         case db.column_schema_to_ruby_type(c.last[:type])[:type]
         when BigDecimal
           "float"
+        when :Bignum
+          "integer"
         when File
           "blob"
+        when TrueClass
+          "boolean"
         else
           db.column_schema_to_ruby_type(c.last[:type])[:type].to_s.downcase
         end
