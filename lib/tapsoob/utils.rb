@@ -37,7 +37,7 @@ module Tapsoob
       data.unpack("m").first
     end
 
-    def format_data(data, opts = {})
+    def format_data(db, data, opts = {})
       return {} if data.size == 0
       string_columns = opts[:string_columns] || []
       schema = opts[:schema] || []
@@ -75,7 +75,16 @@ Data : #{data}
       res = { table_name: table, header: header, data: only_data }
 
       # Add types if schema isn't empty
-      res[:types] = schema.map { |c| c.last[:type] } unless schema.empty?
+      res[:types] = schema.map do |c|
+        case db.column_schema_to_ruby_type(c.last[:type])[:type]
+        when BigDecimal
+          "float"
+        when File
+          "blob"
+        else
+          db.column_schema_to_ruby_type(c.last[:type])[:type].to_s.downcase
+        end
+      end unless schema.empty?
 
       res
     end

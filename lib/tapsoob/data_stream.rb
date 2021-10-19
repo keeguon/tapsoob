@@ -75,7 +75,7 @@ module Tapsoob
       state[:chunksize] = fetch_chunksize
       ds = table.order(*order_by).limit(state[:chunksize], state[:offset])
       log.debug "DataStream#fetch_rows SQL -> #{ds.sql}"
-      rows = Tapsoob::Utils.format_data(ds.all,
+      rows = Tapsoob::Utils.format_data(db, ds.all,
         :string_columns => string_columns,
         :schema => db.schema(table_name),
         :table => table_name
