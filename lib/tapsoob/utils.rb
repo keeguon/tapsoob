@@ -75,6 +75,7 @@ Data : #{data}
       res = { table_name: table, header: header, data: only_data }
 
       # Add types if schema isn't empty
+      db.extension :schema_dumper # Add schema dumper extension in case it hasn't been added until now
       res[:types] = schema.map do |c|
         case db.column_schema_to_ruby_type(c.last)[:type]
         when BigDecimal
