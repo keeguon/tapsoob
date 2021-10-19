@@ -76,7 +76,7 @@ Data : #{data}
 
       # Add types if schema isn't empty
       res[:types] = schema.map do |c|
-        case db.column_schema_to_ruby_type(c.last[:type])[:type]
+        case db.column_schema_to_ruby_type(c.last)[:type]
         when BigDecimal
           "float"
         when :Bignum
@@ -86,7 +86,7 @@ Data : #{data}
         when TrueClass
           "boolean"
         else
-          db.column_schema_to_ruby_type(c.last[:type])[:type].to_s.downcase
+          db.column_schema_to_ruby_type(c.last)[:type].to_s.downcase
         end
       end unless schema.empty?
 
