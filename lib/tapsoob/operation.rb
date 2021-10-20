@@ -393,7 +393,7 @@ module Tapsoob
       log.info "#{tables.size} tables, #{format_number(record_count)} records"
 
       tables.each do |table_name, count|
-        next unless File.exists?(File.join(dump_path, "data", "#{table_name}.json")) || JSON.parse(File.read(File.join(dump_path, "data", "#{table_name}.json")))["data"].size == 0
+        next unless File.exists?(File.join(dump_path, "data", "#{table_name}.json")) || File.exists?(File.join(dump_path, "data", "#{table_name}.json")) && JSON.parse(File.read(File.join(dump_path, "data", "#{table_name}.json")))["data"].size == 0
         db[table_name.to_sym].truncate if @opts[:purge]
         stream = Tapsoob::DataStream.factory(db, {
           :table_name => table_name,
