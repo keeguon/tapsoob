@@ -12,7 +12,6 @@ module Tapsoob
     class DataStream < Thor
       desc "pull DATABASE_URL [DUMP_PATH]", "Pull data from a database."
       option :chunksize, desc: "Initial chunksize", default: 1000, type: :numeric, aliases: "-c"
-      option :filter, desc: "Regex Filter for tables", type: :string, aliases: "-f"
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :progress, desc: "Show progress", default: true, type: :boolean, aliases: "-p"
@@ -24,7 +23,6 @@ module Tapsoob
 
       desc "push DATABASE_URL [DUMP_PATH]", "Push data to a database."
       option :chunksize, desc: "Initial chunksize", default: 1000, type: :numeric, aliases: "-c"
-      option :filter, desc: "Regex Filter for tables", type: :string, aliases: "-f"
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :progress, desc: "Show progress", default: true, type: :boolean, aliases: "-p"
@@ -65,6 +63,7 @@ module Tapsoob
           # Default options
           opts = {
             progress: options[:progress],
+            tables: options[:tables],
             debug: options[:debug]
           }
 
@@ -76,15 +75,6 @@ module Tapsoob
           # Default chunksize
           if options[:chunksize]
             opts[:default_chunksize] = (options[:chunksize] < 10 ? 10 : options[:chunksize])
-          end
-
-          # Regex filter
-          opts[:table_filter] = options[:filter] if options[:filter]
-
-          # Table filter
-          if options[:tables]
-            r_tables = options[:tables].collect { |t| "^#{t}" }.join("|")
-            opts[:table_filter] = "#{r_tables}"
           end
 
           # Exclude tables

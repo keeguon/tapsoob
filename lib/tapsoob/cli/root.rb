@@ -15,7 +15,6 @@ module Tapsoob
       option :resume, desc: "Resume a Tapsoob Session from a stored file", type: :string, aliases: "-r"
       option :chunksize, desc: "Initial chunksize", default: 1000, type: :numeric, aliases: "-c"
       option :"disable-compression", desc: "Disable Compression", default: false, type: :boolean, aliases: "-g"
-      option :filter, desc: "Regex Filter for tables", type: :string, aliases: "-f"
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :debug, desc: "Enable debug messages", default: false, type: :boolean, aliases: "-d"
@@ -35,7 +34,6 @@ module Tapsoob
       option :resume, desc: "Resume a Tapsoob Session from a stored file", type: :string, aliases: "-r"
       option :chunksize, desc: "Initial chunksize", default: 1000, type: :numeric, aliases: "-c"
       option :"disable-compression", desc: "Disable Compression", default: false, type: :boolean, aliases: "-g"
-      option :filter, desc: "Regex Filter for tables", type: :string, aliases: "-f"
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :purge, desc: "Purge data in tables prior to performing the import", default: false, type: :boolean, aliases: "-p"
@@ -70,6 +68,7 @@ module Tapsoob
             skip_schema: options[:"skip-schema"],
             indexes_first: options[:"indexes_first"],
             disable_compression: options[:"disable-compression"],
+            tables: options[:tables],
             debug: options[:debug]
           }
 
@@ -90,15 +89,6 @@ module Tapsoob
           # Default chunksize
           if options[:chunksize]
             opts[:default_chunksize] = (options[:chunksize] < 10 ? 10 : options[:chunksize])
-          end
-
-          # Regex filter
-          opts[:table_filter] = options[:filter] if options[:filter]
-
-          # Table filter
-          if options[:tables]
-            r_tables = options[:tables].collect { |t| "^#{t}" }.join("|")
-            opts[:table_filter] = "#{r_tables}"
           end
 
           # Exclude tables

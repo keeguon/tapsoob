@@ -30,7 +30,7 @@ module Tapsoob
     end
 
     def table_filter
-      opts[:table_filter]
+      opts[:tables] || []
     end
 
     def exclude_tables
@@ -40,17 +40,16 @@ module Tapsoob
     def apply_table_filter(tables)
       return tables unless table_filter || exclude_tables
 
-      re = table_filter ? Regexp.new(table_filter) : nil
       if tables.kind_of?(Hash)
         ntables = {}
         tables.each do |t, d|
-          if !exclude_tables.include?(t.to_s) && (!re || !re.match(t.to_s).nil?)
+          if !exclude_tables.include?(t.to_s) && table_filter.include?(t.to_s)
             ntables[t] = d
           end
         end
         ntables
       else
-        tables.reject { |t| exclude_tables.include?(t.to_s) || (re && re.match(t.to_s).nil?) }
+        tables.reject { |t| exclude_tables.include?(t.to_s) }.select { |t| table_filter.include?(t.to_s) }
       end
     end
 
@@ -181,8 +180,7 @@ module Tapsoob
       tables.each do |table_name, count|
         schema_data = Tapsoob::Schema.dump_table(database_url, table_name)
         log.debug "Table: #{table_name}\n#{schema_data}\n"
-        output = Tapsoob::Utils.export_schema(dump_path, table_name, schema_data)
-        puts output if output
+        Tapsoob::Utils.export_schema(dump_path, table_name, schema_data)
         progress.inc(1)
       end
       progress.finish
@@ -290,15 +288,14 @@ module Tapsoob
     def pull_indexes
       log.info "Receiving indexes"
 
-      raw_idxs = Tapsoob::Utils.schema_bin(:indexes_individual, database_url)
+      raw_idxs = Tapsoob::Schema.indexes_individual(database_url)
       idxs     = (raw_idxs && raw_idxs.length >= 2 ? JSON.parse(raw_idxs) : {})
 
       apply_table_filter(idxs).each do |table, indexes|
         next unless indexes.size > 0
         progress = ProgressBar.new(table, indexes.size)
         indexes.each do |idx|
-          output = Tapsoob::Utils.export_indexes(dump_path, table, idx)
-          puts output if output
+          Tapsoob::Utils.export_indexes(dump_path, table, idx)
           progress.inc(1)
         end
         progress.finish
@@ -308,8 +305,7 @@ module Tapsoob
     def pull_reset_sequences
       log.info "Resetting sequences"
 
-      output = Tapsoob::Utils.schema_bin(:reset_db_sequences, database_url)
-      puts output if output
+      Tapsoob::Utils.schema_bin(:reset_db_sequences, database_url)
     end
   end
 
