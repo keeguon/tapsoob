@@ -180,7 +180,8 @@ module Tapsoob
       tables.each do |table_name, count|
         schema_data = Tapsoob::Schema.dump_table(database_url, table_name)
         log.debug "Table: #{table_name}\n#{schema_data}\n"
-        Tapsoob::Utils.export_schema(dump_path, table_name, schema_data)
+        output = Tapsoob::Utils.export_schema(dump_path, table_name, schema_data)
+        puts output if dump_path.nil? && output
         progress.inc(1)
       end
       progress.finish
@@ -295,7 +296,8 @@ module Tapsoob
         next unless indexes.size > 0
         progress = ProgressBar.new(table, indexes.size)
         indexes.each do |idx|
-          Tapsoob::Utils.export_indexes(dump_path, table, idx)
+          output = Tapsoob::Utils.export_indexes(dump_path, table, idx)
+          puts output if dump_path.nil? && output
           progress.inc(1)
         end
         progress.finish
@@ -305,7 +307,8 @@ module Tapsoob
     def pull_reset_sequences
       log.info "Resetting sequences"
 
-      Tapsoob::Utils.schema_bin(:reset_db_sequences, database_url)
+      output = Tapsoob::Utils.schema_bin(:reset_db_sequences, database_url)
+      puts output if dump_path.nil? && output
     end
   end
 
