@@ -38,12 +38,12 @@ module Tapsoob
     end
 
     def apply_table_filter(tables)
-      return tables unless table_filter || exclude_tables
+      return tables if table_filter.empty? && exclude_tables.empty?
 
       if tables.kind_of?(Hash)
         ntables = {}
         tables.each do |t, d|
-          if !exclude_tables.include?(t.to_s) && table_filter.include?(t.to_s)
+          if !exclude_tables.include?(t.to_s) && (!table_filter.empty? && table_filter.include?(t.to_s))
             ntables[t] = d
           end
         end
