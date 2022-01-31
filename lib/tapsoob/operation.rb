@@ -21,6 +21,10 @@ module Tapsoob
       "op"
     end
 
+    def schema_only?
+      !!opts[:schema_only]
+    end
+
     def skip_schema?
       !!opts[:skip_schema]
     end
@@ -167,7 +171,7 @@ module Tapsoob
         end
         setup_signal_trap
         pull_partial_data if resuming?
-        pull_data
+        pull_data unless schema_only?
         pull_indexes if !indexes_first? && !skip_schema?
         pull_reset_sequences
       end
@@ -329,7 +333,7 @@ module Tapsoob
         end
         setup_signal_trap
         push_partial_data if resuming?
-        push_data
+        push_data unless schema_only?
         push_indexes if !indexes_first? && !skip_schema?
         push_reset_sequences
       end
