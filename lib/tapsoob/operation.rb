@@ -220,25 +220,54 @@ module Tapsoob
 
     def pull_data_from_table(stream, progress)
       loop do
-        begin
-          exit 0 if exiting?
+        if exiting?
+          store_session
+          exit 0
+        end
 
-          size = stream.fetch_database do |rows|
-            if dump_path.nil?
-              puts JSON.generate(rows)
-            else
-              Tapsoob::Utils.export_rows(dump_path, stream.table_name, rows)
+        row_size = 0
+        chunksize = stream.state[:chunksize]
+
+        begin
+          chunksize = Tapsoob::Utils.calculate_chunksize(chunksize) do |c|
+            stream.state[:chunksize] = c.to_i
+            encoded_data, row_size, elapsed_time = nil
+            d1 = c.time_delta do
+              encoded_data, row_size, elapsed_time = stream.fetch
             end
+        
+            data = nil
+            d2 = c.time_delta do
+              data = {
+                :state        => stream.to_hash,
+                :checksum     => Tapsoob::Utils.checksum(encoded_data).to_s,
+                :encoded_data => encoded_data
+              }
+            end
+        
+            stream.fetch_data_from_database(data) do |rows|
+              if dump_path.nil?
+                puts JSON.generate(rows)
+              else
+                Tapsoob::Utils.export_rows(dump_path, stream.table_name, rows)
+              end
+            end
+            log.debug "row size: #{row_size}"
+            stream.error = false
+            self.stream_state = stream.to_hash
+            
+            c.idle_secs = (d1 + d2)
+            
+            elapsed_time
           end
-          stream.error = false
-          self.stream_state = stream.to_hash
         rescue Tapsoob::CorruptedData => e
           log.info "Corrupted Data Received #{e.message}, retrying..."
           stream.error = true
           next
         end
 
-        progress.inc(size) if progress && !exiting?
+        progress.inc(row_size) if progress
+        
         break if stream.complete?
       end
 
@@ -407,7 +436,7 @@ module Tapsoob
           :purge => opts[:purge] || false,
           :debug => opts[:debug]
         })
-        progress = ProgressBar.new(table_name.to_s, count)
+        progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, count) : nil)
         push_data_from_file(stream, progress)
       end
     end
@@ -429,17 +458,17 @@ module Tapsoob
             d1 = c.time_delta do
               encoded_data, row_size, elapsed_time = stream.fetch({ :type => "file", :source => dump_path })
             end
-            break if stream.complete?
 
             data = nil
             d2 = c.time_delta do
               data = {
-                :state    => stream.to_hash,
-                :checksum => Tapsoob::Utils.checksum(encoded_data).to_s
+                :state        => stream.to_hash,
+                :checksum     => Tapsoob::Utils.checksum(encoded_data).to_s,
+                :encoded_data => encoded_data
               }
             end
 
-            row_size = stream.fetch_data_in_database({ :encoded_data => encoded_data, :checksum => data[:checksum] })
+            stream.fetch_data_to_database(data)
             log.debug "row size: #{row_size}"
             self.stream_state = stream.to_hash
 
@@ -458,13 +487,12 @@ module Tapsoob
         end
         stream.state[:chunksize] = chunksize
 
-        progress.inc(row_size)
+        progress.inc(row_size) if progress
 
-        stream.increment(row_size)
         break if stream.complete?
       end
 
-      progress.finish
+      progress.finish if progress
       completed_tables << stream.table_name.to_s
       self.stream_state = {}
     end

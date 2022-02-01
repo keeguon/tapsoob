@@ -74,6 +74,7 @@ module Tapsoob
     def fetch_rows
       state[:chunksize] = fetch_chunksize
       ds = table.order(*order_by).limit(state[:chunksize], state[:offset])
+      state[:size] = table.count
       log.debug "DataStream#fetch_rows SQL -> #{ds.sql}"
       rows = Tapsoob::Utils.format_data(db, ds.all,
         :string_columns => string_columns,
@@ -87,6 +88,7 @@ module Tapsoob
     def fetch_file(dump_path)
       state[:chunksize] = fetch_chunksize
       ds = JSON.parse(File.read(File.join(dump_path, "data", "#{table_name}.json")))
+      state[:size] = ds["data"].size
       log.debug "DataStream#fetch_file"
       rows = {
         :table_name => ds["table_name"],
@@ -132,71 +134,34 @@ module Tapsoob
       t2 = Time.now
       elapsed_time = t2 - t1
 
-      if opts[:type] == "file"
-        @complete = rows[:data] == [ ]
-      else
-        @complete = rows == { }
-      end
+      state[:offset] += rows[:data].size
 
-      [encoded_data, (@complete ? 0 : rows[:data].size), elapsed_time]
+      [encoded_data, (rows[:data].size || 0), elapsed_time]
     end
 
     def complete?
-      @complete
+      state[:offset] >= state[:size]
     end
 
-    def fetch_database
-      params = fetch_from_database
-      encoded_data = params[:encoded_data]
-      json = params[:json]
-
-      rows = parse_encoded_data(encoded_data, json[:checksum])
-
-      @complete = rows == { }
-
-      # update local state
-      state.merge!(json[:state].merge(:chunksize => state[:chunksize]))
-
-      unless @complete
-        yield rows if block_given?
-        state[:offset] += rows[:data].size
-        rows[:data].size
-      else
-        0
-      end
-    end
-
-    def fetch_from_database
-      res = nil
-      log.debug "DataStream#fetch_from_database state -> #{state.inspect}"
-      state[:chunksize] = Tapsoob::Utils.calculate_chunksize(state[:chunksize]) do |c|
-        state[:chunksize] = c.to_i
-        encoded_data = fetch.first
-
-        checksum = Tapsoob::Utils.checksum(encoded_data).to_s
-
-        res = {
-          :json         => { :checksum => checksum, :state => to_hash },
-          :encoded_data => encoded_data
-        }
-      end
-
-      res
-    end
-
-    def fetch_data_in_database(params)
+    def fetch_data_from_database(params)
       encoded_data = params[:encoded_data]
 
       rows = parse_encoded_data(encoded_data, params[:checksum])
 
-      @complete = rows[:data] == [ ]
+      # update local state
+      state.merge!(params[:state].merge(:chunksize => state[:chunksize]))
 
-      unless @complete
-        import_rows(rows)
-        rows[:data].size
-      else
-        0
-      end
+      yield rows if block_given?
+      rows[:data].size
+    end
+
+    def fetch_data_to_database(params)
+      encoded_data = params[:encoded_data]
+
+      rows = parse_encoded_data(encoded_data, params[:checksum])
+      
+      import_rows(rows)
+      rows[:data].size
     end
 
     def self.parse_json(json)
@@ -266,7 +231,6 @@ module Tapsoob
       end
 
       table.import(columns, data, :commit_every => 100)
-      state[:offset] += rows[:data].size
     rescue Exception => ex
       case ex.message
       when /integer out of range/ then

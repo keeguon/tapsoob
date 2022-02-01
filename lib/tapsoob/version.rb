@@ -1,4 +1,4 @@
 # -*- encoding : utf-8 -*-
 module Tapsoob
-  VERSION = "0.4.27".freeze
+  VERSION = "0.5.0".freeze
 end
