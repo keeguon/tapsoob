@@ -134,9 +134,9 @@ module Tapsoob
       t2 = Time.now
       elapsed_time = t2 - t1
 
-      state[:offset] += rows[:data].size
+      state[:offset] += (rows == {} ? 0 : rows[:data].size)
 
-      [encoded_data, (rows[:data].size || 0), elapsed_time]
+      [encoded_data, (rows == {} ? 0 : rows[:data].size), elapsed_time]
     end
 
     def complete?
@@ -152,7 +152,7 @@ module Tapsoob
       state.merge!(params[:state].merge(:chunksize => state[:chunksize]))
 
       yield rows if block_given?
-      rows[:data].size
+      (rows == {} ? 0 : rows[:data].size)
     end
 
     def fetch_data_to_database(params)
@@ -161,7 +161,7 @@ module Tapsoob
       rows = parse_encoded_data(encoded_data, params[:checksum])
       
       import_rows(rows)
-      rows[:data].size
+      (rows == {} ? 0 : rows[:data].size)
     end
 
     def self.parse_json(json)
