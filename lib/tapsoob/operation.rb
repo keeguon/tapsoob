@@ -246,6 +246,8 @@ module Tapsoob
             end
         
             stream.fetch_data_from_database(data) do |rows|
+              next if rows == {}
+
               if dump_path.nil?
                 puts JSON.generate(rows)
               else
