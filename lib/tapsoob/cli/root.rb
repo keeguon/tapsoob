@@ -10,8 +10,8 @@ module Tapsoob
   module CLI
     class Root < Thor
       desc "pull DUMP_PATH DATABASE_URL", "Pull a dump from a database to a folder"
-      option :"schema-only", desc: "Don't transfer the data just schema", default: false, type: :boolean
-      option :"skip-schema", desc: "Don't transfer the schema just data", default: false, type: :boolean, aliases: "-s"
+      option :data, desc: "Pull the data to the database", default: true, type: :boolean, aliases: '-d'
+      option :schema, desc: "Pull the schema to the database", default: true, type: :boolean, aliases: "-s"
       option :"indexes-first", desc: "Transfer indexes first before data", default: false, type: :boolean, aliases: "-i"
       option :resume, desc: "Resume a Tapsoob Session from a stored file", type: :string, aliases: "-r"
       option :chunksize, desc: "Initial chunksize", default: 1000, type: :numeric, aliases: "-c"
@@ -19,7 +19,7 @@ module Tapsoob
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :progress, desc: "Show progress", default: true, type: :boolean
-      option :debug, desc: "Enable debug messages", default: false, type: :boolean, aliases: "-d"
+      option :debug, desc: "Enable debug messages", default: false, type: :boolean
       def pull(dump_path, database_url)
         opts = parse_opts(options)
         Tapsoob.log.level = Logger::DEBUG if opts[:debug]
@@ -31,8 +31,8 @@ module Tapsoob
       end
 
       desc "push DUMP_PATH DATABASE_URL", "Push a previously tapsoob dump to a database"
-      option :"schema-only", desc: "Don't transfer the data just schema", default: false, type: :boolean
-      option :"skip-schema", desc: "Don't transfer the schema just data", default: false, type: :boolean, aliases: "-s"
+      option :data, desc: "Push the data to the database", default: true, type: :boolean, aliases: '-d'
+      option :schema, desc: "Push the schema to the database", default: true, type: :boolean, aliases: "-s"
       option :"indexes-first", desc: "Transfer indexes first before data", default: false, type: :boolean, aliases: "-i"
       option :resume, desc: "Resume a Tapsoob Session from a stored file", type: :string, aliases: "-r"
       option :chunksize, desc: "Initial chunksize", default: 1000, type: :numeric, aliases: "-c"
@@ -43,7 +43,7 @@ module Tapsoob
       option :"skip-duplicates", desc: "Remove duplicates when loading data", default: false, type: :boolean
       option :"discard-identity", desc: "Remove identity when pushing data (may result in creating duplicates)", default: false, type: :boolean
       option :progress, desc: "Show progress", default: true, type: :boolean
-      option :debug, desc: "Enable debug messages", default: false, type: :boolean, aliases: "-d"
+      option :debug, desc: "Enable debug messages", default: false, type: :boolean
       def push(dump_path, database_url)
         opts = parse_opts(options)
         Tapsoob.log.level = Logger::DEBUG if opts[:debug]
@@ -69,8 +69,8 @@ module Tapsoob
         def parse_opts(options)
           # Default options
           opts = {
-            schema_only: options[:"schema-only"],
-            skip_schema: options[:"skip-schema"],
+            data: options[:data],
+            data: options[:schema],
             indexes_first: options[:"indexes_first"],
             disable_compression: options[:"disable-compression"],
             tables: options[:tables],

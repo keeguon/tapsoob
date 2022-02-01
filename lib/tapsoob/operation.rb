@@ -21,12 +21,12 @@ module Tapsoob
       "op"
     end
 
-    def schema_only?
-      !!opts[:schema_only]
+    def data?
+      opts[:data]
     end
 
-    def skip_schema?
-      !!opts[:skip_schema]
+    def schema?
+      opts[:schema]
     end
 
     def indexes_first?
@@ -166,13 +166,13 @@ module Tapsoob
     def run
       catch_errors do
         unless resuming?
-          pull_schema if !skip_schema?
-          pull_indexes if indexes_first? && !skip_schema?
+          pull_schema if schema?
+          pull_indexes if indexes_first? && schema?
         end
         setup_signal_trap
-        pull_partial_data if resuming?
-        pull_data unless schema_only?
-        pull_indexes if !indexes_first? && !skip_schema?
+        pull_partial_data if data? && resuming?
+        pull_data if data?
+        pull_indexes if !indexes_first? && schema?
         pull_reset_sequences
       end
     end
@@ -359,13 +359,13 @@ module Tapsoob
     def run
       catch_errors do
         unless resuming?
-          push_schema if !skip_schema?
-          push_indexes if indexes_first? && !skip_schema?
+          push_schema if schema?
+          push_indexes if indexes_first? && schema?
         end
         setup_signal_trap
-        push_partial_data if resuming?
-        push_data unless schema_only?
-        push_indexes if !indexes_first? && !skip_schema?
+        push_partial_data if data? && resuming?
+        push_data if data?
+        push_indexes if !indexes_first? && schema?
         push_reset_sequences
       end
     end
