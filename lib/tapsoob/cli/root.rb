@@ -70,7 +70,7 @@ module Tapsoob
           # Default options
           opts = {
             data: options[:data],
-            data: options[:schema],
+            schema: options[:schema],
             indexes_first: options[:"indexes_first"],
             disable_compression: options[:"disable-compression"],
             tables: options[:tables],
