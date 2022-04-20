@@ -72,7 +72,7 @@ module Tapsoob
     # keep a record of the average chunksize within the first few hundred thousand records, after chunksize
     # goes below 100 or maybe if offset is > 1000
     def fetch_rows
-      state[:chunksize] = fetch_chunksize
+      #state[:chunksize] = fetch_chunksize
       ds = table.order(*order_by).limit(state[:chunksize], state[:offset])
       state[:size] = table.count
       log.debug "DataStream#fetch_rows SQL -> #{ds.sql}"
@@ -86,7 +86,7 @@ module Tapsoob
     end
 
     def fetch_file(dump_path)
-      state[:chunksize] = fetch_chunksize
+      #state[:chunksize] = fetch_chunksize
       ds = JSON.parse(File.read(File.join(dump_path, "data", "#{table_name}.json")))
       state[:size] = ds["data"].size
       log.debug "DataStream#fetch_file"
@@ -104,13 +104,13 @@ module Tapsoob
       20
     end
 
-    def fetch_chunksize
-      chunksize = state[:chunksize]
-      return chunksize if state[:num_chunksize] < max_chunksize_training
-      return chunksize if state[:avg_chunksize] == 0
-      return chunksize if state[:error]
-      state[:avg_chunksize] > chunksize ? state[:avg_chunksize] : chunksize
-    end
+    #def fetch_chunksize
+    #  chunksize = state[:chunksize]
+    #  return chunksize if state[:num_chunksize] < max_chunksize_training
+    #  return chunksize if state[:avg_chunksize] == 0
+    #  return chunksize if state[:error]
+    #  state[:avg_chunksize] > chunksize ? state[:avg_chunksize] : chunksize
+    #end
 
     def update_chunksize_stats
       return if state[:num_chunksize] >= max_chunksize_training
