@@ -21,8 +21,8 @@ Gem::Specification.new do |s|
 
   # Dependencies
   s.add_dependency "ripl", "~> 0.7.1"
-  s.add_dependency "sequel", "~> 5.37.0"
-  s.add_dependency "thor", "~> 1.0.1"
+  s.add_dependency "sequel", "~> 5.55.0"
+  s.add_dependency "thor", "~> 1.2.1"
 
   if (RUBY_PLATFORM =~ /java/).nil?
     s.add_development_dependency "mysql2",  "~> 0.4.10"
@@ -32,7 +32,7 @@ Gem::Specification.new do |s|
     s.platform = 'java'
 
     s.add_dependency "jdbc-mysql",    "~> 5.1.44"
-    s.add_dependency "jdbc-postgres", "~> 42.1.4"
-    s.add_dependency "jdbc-sqlite3",  "~> 3.20.1"
+    s.add_dependency "jdbc-postgres", "~> 42.2.25"
+    s.add_dependency "jdbc-sqlite3",  "~> 3.28.0"
   end
 end
