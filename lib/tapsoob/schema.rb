@@ -15,7 +15,7 @@ module Tapsoob
       template = ERB.new <<-END_MIG
 Class.new(Sequel::Migration) do
   def up
-  <% db.sort_dumped_tables(db.tables).each do |table| %>
+  <% db.send(:sort_dumped_tables, db.tables).each do |table| %>
     <%= db.dump_table_schema(table, indexes: false) %>
   <% end %>
   end
