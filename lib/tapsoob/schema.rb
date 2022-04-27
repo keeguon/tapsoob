@@ -21,7 +21,7 @@ Class.new(Sequel::Migration) do
   end
 
   def down
-  <% db.tables.each do |table| %>
+  <% db.send(:sort_dumped_tables, db.tables, {}).reverse.each do |table| %>
     drop_table("<%= table %>", if_exists: true)
   <% end %>
   end
