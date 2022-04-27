@@ -118,6 +118,7 @@ module Tapsoob
 
     def db
       @db ||= Sequel.connect(database_url)
+      @db.extension :schema_dumper
       @db.loggers << Tapsoob.log if opts[:debug]
 
       # Set parameters
@@ -296,7 +297,7 @@ module Tapsoob
     end
 
     def fetch_tables_info
-      tables = db.tables
+      tables = db.send(:sort_dumped_tables, db.tables, {})
 
       data = {}
       apply_table_filter(tables).each do |table_name|
