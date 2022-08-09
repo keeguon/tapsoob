@@ -14,8 +14,14 @@ module Tapsoob
       end
 
       desc "dump DATABASE_URL", "Dump a database using a database URL"
+      option :indexes, type: :boolean, default: false
+      option :"same-db", type: :boolean, default: false
       def dump(database_url)
-        puts Tapsoob::Schema.dump(database_url)
+        opts = {}
+        opts[:indexes] = options[:"indexes"]
+        opts[:same_db] = options[:"same-db"]
+
+        puts Tapsoob::Schema.dump(database_url, opts)
       end
 
       desc "dump_table DATABASE_URL TABLE", "Dump a table from a database using a database URL"

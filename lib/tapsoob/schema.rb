@@ -9,14 +9,14 @@ module Tapsoob
   module Schema
     extend self
 
-    def dump(database_url)
+    def dump(database_url, options = {})
       db = Sequel.connect(database_url)
       db.extension :schema_dumper
       template = ERB.new <<-END_MIG
 Class.new(Sequel::Migration) do
   def up
   <% db.send(:sort_dumped_tables, db.tables, {}).each do |table| %>
-    <%= db.dump_table_schema(table, indexes: false) %>
+    <%= db.dump_table_schema(table, options) %>
   <% end %>
   end
 
