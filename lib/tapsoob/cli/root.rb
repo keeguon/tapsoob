@@ -18,6 +18,7 @@ module Tapsoob
       option :"disable-compression", desc: "Disable Compression", default: false, type: :boolean, aliases: "-g"
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
+      option :"indexes", type: :boolean, default: false
       option :"same-db", type: :boolean, default: false
       option :progress, desc: "Show progress", default: true, type: :boolean
       option :debug, desc: "Enable debug messages", default: false, type: :boolean
@@ -80,6 +81,7 @@ module Tapsoob
           }
 
           # Pull only options
+          opts[:indexes] = options[:"indexes"] if options.key?(:"indexes")
           opts[:same_db] = options[:"same-db"] if options.key?(:"same-db")
 
           # Push only options
