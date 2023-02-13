@@ -54,6 +54,7 @@ module Tapsoob
             stream.import_rows(table)
           rescue Exception => e
             stream.log.debug e.message
+            STDERR.puts "Error loading data in #{table[:table_name]} : #{e.message}"
           end
         end
       end
