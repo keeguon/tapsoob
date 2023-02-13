@@ -77,14 +77,14 @@ Data : #{data}
       # Add types if schema isn't empty
       db.extension :schema_dumper # Add schema dumper extension in case it hasn't been added until now
       res[:types] = schema.map do |c|
-        case db.column_schema_to_ruby_type(c.last)[:type]
-        when BigDecimal
+        case db.column_schema_to_ruby_type(c.last)[:type].to_s
+        when "BigDecimal"
           "float"
-        when :Bignum
+        when "Bignum"
           "integer"
-        when File
+        when "File"
           "blob"
-        when TrueClass
+        when "TrueClass"
           "boolean"
         else
           db.column_schema_to_ruby_type(c.last)[:type].to_s.downcase
