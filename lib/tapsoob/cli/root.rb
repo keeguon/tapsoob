@@ -40,6 +40,7 @@ module Tapsoob
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :purge, desc: "Purge data in tables prior to performing the import", default: false, type: :boolean, aliases: "-p"
+      option :"same-db", type: :boolean, default: false
       option :"skip-duplicates", desc: "Remove duplicates when loading data", default: false, type: :boolean
       option :"discard-identity", desc: "Remove identity when pushing data (may result in creating duplicates)", default: false, type: :boolean
       option :progress, desc: "Show progress", default: true, type: :boolean
@@ -77,6 +78,9 @@ module Tapsoob
             progress: options[:progress],
             debug: options[:debug]
           }
+
+          # Pull only options
+          opts[:same_db] = options[:"same-db"] if options.key?(:"same-db")
 
           # Push only options
           opts[:purge] = options[:purge] if options.key?(:purge)
