@@ -49,6 +49,12 @@ END_MIG
       end
     end
 
+    def foreign_keys(database_url)
+      db = Sequel.connect(database_url)
+      db.extension :schema_dumper
+      db.dump_foreign_key_migration
+    end
+
     def indexes(database_url)
       db = Sequel.connect(database_url)
       db.extension :schema_dumper
@@ -95,6 +101,13 @@ END_MIG
           db.run("SET foreign_key_checks = 1") if [:mysql, :mysql2].include?(db.adapter_scheme)
         end
         klass.apply(db, :up)
+      end
+    end
+
+    def load_foreign_keys(database_url, foreign_keys)
+      Sequel.connect(database_url) do |db|
+        db.extension :schema_dumper
+        eval(foreign_keys).apply(db, :up)
       end
     end
 

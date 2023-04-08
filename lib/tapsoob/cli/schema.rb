@@ -15,10 +15,12 @@ module Tapsoob
 
       desc "dump DATABASE_URL", "Dump a database using a database URL"
       option :indexes, type: :boolean, default: false
+      option :"foreign-keys", type: :boolean, default: false
       option :"same-db", type: :boolean, default: false
       def dump(database_url)
         opts = {}
         opts[:indexes] = options[:"indexes"]
+        opts[:foreign_keys] = options[:"foreign-keys"]
         opts[:same_db] = options[:"same-db"]
 
         puts Tapsoob::Schema.dump(database_url, opts)
@@ -27,6 +29,11 @@ module Tapsoob
       desc "dump_table DATABASE_URL TABLE", "Dump a table from a database using a database URL"
       def dump_table(database_url, table)
         puts Tapsoob::Schema.dump_table(database_url, table)
+      end
+
+      desc "foreign_keys DATABASE_URL", "Dump foreign_keys from a database using a database URL"
+      def foreign_keys(database_url)
+        puts Tapsoob::Schema.foreign_keys(database_url)
       end
 
       desc "indexes DATABASE_URL", "Dump indexes from a database using a database URL"
@@ -44,7 +51,7 @@ module Tapsoob
         Tapsoob::Schema.reset_db_sequences(database_url)
       end
 
-      desc "load DATABASE_URL [FILENAME]", "Load a database schema from a file to a database using a database URL"
+      desc "load DATABASE_URL [FILENAME]", "Load a database schema from a file or STDIN to a database using a database URL"
       option :drop, type: :boolean, default: false
       def load(database_url, filename = nil)
         schema = if filename && File.exists?(filename)
@@ -60,7 +67,22 @@ module Tapsoob
         end
       end
 
-      desc "load_indexes DATABASE_URL [FILENAME]", "Load indexes from a file to a database using a database URL"
+      desc "load_foreign_keys DATABASE_URL [FILENAME]", "Load foreign keys from a file or STDIN to a database using a database URL"
+      def load_foreign_keys(database_url, filename = nil)
+        indexes = if filename && File.exists?(filename)
+          File.read(filename)
+        else
+          STDIN.read
+        end
+
+        begin
+          Tapsoob::Schema.load_foreign_keys(database_url, indexes)
+        rescue Exception => e
+          throw e
+        end
+      end
+
+      desc "load_indexes DATABASE_URL [FILENAME]", "Load indexes from a file or STDIN to a database using a database URL"
       def load_indexes(database_url, filename = nil)
         indexes = if filename && File.exists?(filename)
           File.read(filename)
