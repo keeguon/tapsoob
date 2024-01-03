@@ -1,5 +1,6 @@
 require 'thor'
 require 'fileutils'
+require 'yaml'
 
 require_relative '../config'
 require_relative '../log'
@@ -10,6 +11,7 @@ module Tapsoob
   module CLI
     class Root < Thor
       desc "pull DUMP_PATH DATABASE_URL", "Pull a dump from a database to a folder"
+      option :config, desc: "Define all options in a config file", type: :string, aliases: '-C'
       option :data, desc: "Pull the data to the database", default: true, type: :boolean, aliases: '-d'
       option :schema, desc: "Pull the schema to the database", default: true, type: :boolean, aliases: "-s"
       option :"indexes-first", desc: "Transfer indexes first before data", default: false, type: :boolean, aliases: "-i"
@@ -33,6 +35,7 @@ module Tapsoob
       end
 
       desc "push DUMP_PATH DATABASE_URL", "Push a previously tapsoob dump to a database"
+      option :config, desc: "Define all options in a config file", type: :string, aliases: '-C'
       option :data, desc: "Push the data to the database", default: true, type: :boolean, aliases: '-d'
       option :schema, desc: "Push the schema to the database", default: true, type: :boolean, aliases: "-s"
       option :"indexes-first", desc: "Transfer indexes first before data", default: false, type: :boolean, aliases: "-i"
@@ -56,6 +59,11 @@ module Tapsoob
         end
       end
 
+      def ripl
+        require 'ripl'
+        Ripl.start
+      end
+
       desc "version", "Show tapsoob version"
       def version
         puts Tapsoob::VERSION.dup
@@ -69,8 +77,11 @@ module Tapsoob
 
       private
         def parse_opts(options)
+          # Load config file if it exist
+          opts = ((options[:config] && File.exist?(options[:config])) ? YAML.load_file(options[:config]) : {})
+
           # Default options
-          opts = {
+          opts = opts.merge({
             data: options[:data],
             schema: options[:schema],
             indexes_first: options[:"indexes_first"],
@@ -78,7 +89,7 @@ module Tapsoob
             tables: options[:tables],
             progress: options[:progress],
             debug: options[:debug]
-          }
+          })
 
           # Pull only options
           opts[:indexes] = options[:"indexes"] if options.key?(:"indexes")
@@ -91,7 +102,7 @@ module Tapsoob
 
           # Resume
           if options[:resume]
-            if File.exists?(options[:resume])
+            if File.exist?(options[:resume])
               opts[:resume_file] = options[:resume]
             else
               raise "Unable to find resume file."

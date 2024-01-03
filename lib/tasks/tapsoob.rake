@@ -56,7 +56,7 @@ namespace :tapsoob do
     if dumps.count > keep
       old_dumps = dumps - dumps.reverse[0..(keep - 1)]
       old_dumps.each do |dir|
-        if Dir.exists?(dir)
+        if Dir.exist?(dir)
           puts "Deleting old dump directory ('#{dir}')"
           FileUtils.remove_entry_secure(dir)
         end

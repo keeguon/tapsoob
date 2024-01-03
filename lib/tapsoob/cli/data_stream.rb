@@ -36,7 +36,7 @@ module Tapsoob
         opts = parse_opts(options)
 
         # read data from dump_path or from STDIN
-        if dump_path && Dir.exists?(dump_path)
+        if dump_path && Dir.exist?(dump_path)
           files = Dir[Pathname.new(dump_path).join("*.json")]
           files.each { |file| data << JSON.parse(File.read(file), symbolize_names: true) }
         else

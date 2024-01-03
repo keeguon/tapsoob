@@ -54,7 +54,7 @@ module Tapsoob
       desc "load DATABASE_URL [FILENAME]", "Load a database schema from a file or STDIN to a database using a database URL"
       option :drop, type: :boolean, default: false
       def load(database_url, filename = nil)
-        schema = if filename && File.exists?(filename)
+        schema = if filename && File.exist?(filename)
           File.read(filename)
         else
           STDIN.read
@@ -69,7 +69,7 @@ module Tapsoob
 
       desc "load_foreign_keys DATABASE_URL [FILENAME]", "Load foreign keys from a file or STDIN to a database using a database URL"
       def load_foreign_keys(database_url, filename = nil)
-        indexes = if filename && File.exists?(filename)
+        indexes = if filename && File.exist?(filename)
           File.read(filename)
         else
           STDIN.read
@@ -84,7 +84,7 @@ module Tapsoob
 
       desc "load_indexes DATABASE_URL [FILENAME]", "Load indexes from a file or STDIN to a database using a database URL"
       def load_indexes(database_url, filename = nil)
-        indexes = if filename && File.exists?(filename)
+        indexes = if filename && File.exist?(filename)
           File.read(filename)
         else
           STDIN.read

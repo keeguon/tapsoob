@@ -144,7 +144,7 @@ Data : #{data}
 
     def export_indexes(dump_path, table, index_data)
       data = [index_data]
-      if File.exists?(File.join(dump_path, "indexes", "#{table}.json"))
+      if File.exist?(File.join(dump_path, "indexes", "#{table}.json"))
         previous_data = JSON.parse(File.read(File.join(dump_path, "indexes", "#{table}.json")))
         data = data + previous_data
       end
@@ -156,7 +156,7 @@ Data : #{data}
 
     def export_rows(dump_path, table, row_data)
       data = row_data
-      if File.exists?(File.join(dump_path, "data", "#{table}.json"))
+      if File.exist?(File.join(dump_path, "data", "#{table}.json"))
         previous_data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
         data[:data] = previous_data["data"] + row_data[:data] unless row_data[:data].nil?
       end
