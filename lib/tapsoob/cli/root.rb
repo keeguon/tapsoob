@@ -59,11 +59,6 @@ module Tapsoob
         end
       end
 
-      def ripl
-        require 'ripl'
-        Ripl.start
-      end
-
       desc "version", "Show tapsoob version"
       def version
         puts Tapsoob::VERSION.dup

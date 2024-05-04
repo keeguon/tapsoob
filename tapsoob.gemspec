@@ -20,9 +20,8 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   # Dependencies
-  s.add_dependency "ripl", "~> 0.7.1"
-  s.add_dependency "sequel", "~> 5.70.0"
-  s.add_dependency "thor", "~> 1.2.1"
+  s.add_dependency "sequel", "~> 5.80.0"
+  s.add_dependency "thor", "~> 1.3.1"
 
   if (RUBY_PLATFORM =~ /java/).nil?
     s.add_development_dependency "mysql2",  "~> 0.4.10"
