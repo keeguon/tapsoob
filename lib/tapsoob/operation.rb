@@ -249,6 +249,9 @@ module Tapsoob
             stream.fetch_data_from_database(data) do |rows|
               next if rows == {}
 
+              # Update progress bar immediately when data is ready, before I/O
+              progress.inc(row_size) if progress
+
               if dump_path.nil?
                 puts JSON.generate(rows)
               else
@@ -258,9 +261,9 @@ module Tapsoob
             log.debug "row size: #{row_size}"
             stream.error = false
             self.stream_state = stream.to_hash
-            
+
             c.idle_secs = (d1 + d2)
-            
+
             elapsed_time
           end
         rescue Tapsoob::CorruptedData => e
@@ -268,8 +271,6 @@ module Tapsoob
           stream.error = true
           next
         end
-
-        progress.inc(row_size) if progress
         
         break if stream.complete?
       end
