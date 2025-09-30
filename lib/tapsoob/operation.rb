@@ -375,7 +375,9 @@ module Tapsoob
       idxs = {}
       table_idxs = Dir.glob(File.join(dump_path, "indexes", "*.json")).map { |path| File.basename(path, '.json') }
       table_idxs.each do |table_idx|
-        idxs[table_idx] = JSON.parse(File.read(File.join(dump_path, "indexes", "#{table_idx}.json")))
+        # Read NDJSON format - each line is a separate index
+        index_file = File.join(dump_path, "indexes", "#{table_idx}.json")
+        idxs[table_idx] = File.readlines(index_file).map { |line| JSON.parse(line.strip) }
       end
 
       return unless idxs.size > 0

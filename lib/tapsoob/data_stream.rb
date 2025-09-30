@@ -87,14 +87,34 @@ module Tapsoob
 
     def fetch_file(dump_path)
       #state[:chunksize] = fetch_chunksize
-      ds = JSON.parse(File.read(File.join(dump_path, "data", "#{table_name}.json")))
-      state[:size] = ds["data"].size
+      # Read NDJSON format - each line is a separate JSON chunk
+      file_path = File.join(dump_path, "data", "#{table_name}.json")
+
+      # Parse all chunks and combine them
+      all_data = []
+      table_name_val = nil
+      header_val = nil
+      types_val = nil
+
+      File.readlines(file_path).each do |line|
+        chunk = JSON.parse(line.strip)
+        table_name_val ||= chunk["table_name"]
+        header_val ||= chunk["header"]
+        types_val ||= chunk["types"]
+        all_data.concat(chunk["data"]) if chunk["data"]
+      end
+
+      # Apply skip-duplicates if needed
+      all_data = all_data.uniq if @options[:"skip-duplicates"]
+
+      state[:size] = all_data.size
       log.debug "DataStream#fetch_file"
+
       rows = {
-        :table_name => ds["table_name"],
-        :header     => ds["header"],
-        :data       => ((@options[:"skip-duplicates"] ? ds["data"].uniq : ds["data"])[state[:offset], (state[:offset] + state[:chunksize])] || [ ]),
-        :types      => ds["types"]
+        :table_name => table_name_val,
+        :header     => header_val,
+        :data       => (all_data[state[:offset], state[:chunksize]] || []),
+        :types      => types_val
       }
       update_chunksize_stats
       rows

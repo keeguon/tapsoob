@@ -143,26 +143,21 @@ Data : #{data}
     end
 
     def export_indexes(dump_path, table, index_data)
-      data = [index_data]
-      if File.exist?(File.join(dump_path, "indexes", "#{table}.json"))
-        previous_data = JSON.parse(File.read(File.join(dump_path, "indexes", "#{table}.json")))
-        data = data + previous_data
-      end
+      # Use append-only writes to avoid O(n²) complexity
+      index_file = File.join(dump_path, "indexes", "#{table}.json")
 
-      File.open(File.join(dump_path, "indexes", "#{table}.json"), 'w') do |file|
-        file.write(JSON.generate(data))
+      File.open(index_file, 'a') do |file|
+        file.write(JSON.generate(index_data) + "\n")
       end
     end
 
     def export_rows(dump_path, table, row_data)
-      data = row_data
-      if File.exist?(File.join(dump_path, "data", "#{table}.json"))
-        previous_data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
-        data[:data] = previous_data["data"] + row_data[:data] unless row_data[:data].nil?
-      end
+      # Use append-only writes to avoid O(n²) complexity
+      # Store metadata separately and append data chunks as NDJSON
+      data_file = File.join(dump_path, "data", "#{table}.json")
 
-      File.open(File.join(dump_path, "data", "#{table}.json"), 'w') do |file|
-        file.write(JSON.generate(data))
+      File.open(data_file, 'a') do |file|
+        file.write(JSON.generate(row_data) + "\n")
       end
     end
 
