@@ -35,7 +35,7 @@ end
 gemspec
 
 group :development do
-  gem 'warbler', '~> 2.0.4', platform: :jruby, require: false
+  gem 'warbler', '~> 2.0.5', platform: :jruby, github: "jruby/warbler", require: false
 end
 
 group :test do

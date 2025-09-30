@@ -20,18 +20,18 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   # Dependencies
-  s.add_dependency "sequel", "~> 5.80.0"
-  s.add_dependency "thor", "~> 1.3.1"
+  s.add_dependency "sequel", "~> 5.96.0"
+  s.add_dependency "thor", "~> 1.4.0"
 
   if (RUBY_PLATFORM =~ /java/).nil?
-    s.add_development_dependency "mysql2",  "~> 0.4.10"
-    s.add_development_dependency "pg",      "~> 0.21.0"
-    s.add_development_dependency "sqlite3", "~> 1.3.11"
+    s.add_development_dependency "mysql2",  "~> 0.5.7"
+    s.add_development_dependency "pg",      "~> 1.6.2"
+    s.add_development_dependency "sqlite3", "~> 2.7.4"
   else
     s.platform = 'java'
 
-    s.add_dependency "jdbc-mysql",    "~> 5.1.44"
-    s.add_dependency "jdbc-postgres", "~> 42.2.25"
-    s.add_dependency "jdbc-sqlite3",  "~> 3.28.0"
+    s.add_dependency "jdbc-mysql",    "~> 9.1.0.1"
+    s.add_dependency "jdbc-postgres", "~> 42.6.0"
+    s.add_dependency "jdbc-sqlite3",  "~> 3.46.1.1"
   end
 end
