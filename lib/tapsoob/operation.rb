@@ -198,11 +198,12 @@ module Tapsoob
       log.info "#{tables.size} tables, #{format_number(record_count)} records"
 
       tables.each do |table_name, count|
-        progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, count) : nil)
         stream   = Tapsoob::DataStream.factory(db, {
           :chunksize  => default_chunksize,
           :table_name => table_name
         }, { :debug => opts[:debug] })
+        estimated_chunks = (count.to_f / default_chunksize).ceil
+        progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
         pull_data_from_table(stream, progress)
       end
     end
@@ -214,8 +215,10 @@ module Tapsoob
       record_count = tables[table_name.to_s]
       log.info "Resuming #{table_name}, #{format_number(record_count)} records"
 
-      progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, record_count) : nil)
       stream = Tapsoob::DataStream.factory(db, stream_state)
+      chunksize = stream_state[:chunksize] || default_chunksize
+      estimated_chunks = (record_count.to_f / chunksize).ceil
+      progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
       pull_data_from_table(stream, progress)
     end
 
@@ -249,8 +252,8 @@ module Tapsoob
             stream.fetch_data_from_database(data) do |rows|
               next if rows == {}
 
-              # Update progress bar immediately when data is ready, before I/O
-              progress.inc(row_size) if progress
+              # Update progress bar by 1 chunk
+              progress.inc(1) if progress
 
               if dump_path.nil?
                 puts JSON.generate(rows)
