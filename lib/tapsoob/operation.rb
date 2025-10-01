@@ -202,7 +202,7 @@ module Tapsoob
           :chunksize  => default_chunksize,
           :table_name => table_name
         }, { :debug => opts[:debug] })
-        estimated_chunks = (count.to_f / default_chunksize).ceil
+        estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
         progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
         pull_data_from_table(stream, progress)
       end
@@ -217,7 +217,7 @@ module Tapsoob
 
       stream = Tapsoob::DataStream.factory(db, stream_state)
       chunksize = stream_state[:chunksize] || default_chunksize
-      estimated_chunks = (record_count.to_f / chunksize).ceil
+      estimated_chunks = [(record_count.to_f / chunksize).ceil, 1].max
       progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
       pull_data_from_table(stream, progress)
     end
@@ -423,8 +423,10 @@ module Tapsoob
       table_name = stream_state[:table_name]
       record_count = tables[table_name.to_s]
       log.info "Resuming #{table_name}, #{format_number(record_count)} records"
-      progress = ProgressBar.new(table_name.to_s, record_count)
       stream = Tapsoob::DataStream.factory(db, stream_state)
+      chunksize = stream_state[:chunksize] || default_chunksize
+      estimated_chunks = [(record_count.to_f / chunksize).ceil, 1].max
+      progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
       push_data_from_file(stream, progress)
     end
 
@@ -445,7 +447,8 @@ module Tapsoob
           :purge => opts[:purge] || false,
           :debug => opts[:debug]
         })
-        progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, count) : nil)
+        estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
+        progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
         push_data_from_file(stream, progress)
       end
     end
@@ -496,7 +499,8 @@ module Tapsoob
         end
         stream.state[:chunksize] = chunksize
 
-        progress.inc(row_size) if progress
+        # Update progress bar by 1 chunk
+        progress.inc(1) if progress
 
         break if stream.complete?
       end

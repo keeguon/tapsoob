@@ -2,7 +2,7 @@ namespace :tapsoob do
   desc "Pulls a database to your filesystem"
   task :pull => :environment do
     # Default options
-    opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :schema => true, :data => true, :indexes_first => false}
+    opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :schema => true, :data => true, :indexes_first => false, :progress => true}
 
     # Get the dump_path
     dump_path = File.expand_path(Rails.root.join("db", Time.now.strftime("%Y%m%d%I%M%S%p"))).to_s
@@ -23,7 +23,7 @@ namespace :tapsoob do
   desc "Push a compatible dump on your filesystem to a database"
   task :push, [:timestamp] => :environment do |t, args|
     # Default options
-    opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :schema => true, :data => true, :indexes_first => false}
+    opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :schema => true, :data => true, :indexes_first => false, :progress => true}
 
     # Get the dumps
     dumps = Dir[Rails.root.join("db", "*/")].select { |e| e =~ /([0-9]{14})([A-Z]{2})/ }.sort
