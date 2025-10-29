@@ -406,7 +406,8 @@ module Tapsoob
       progress = ProgressBar.new('Schema', tables.size)
       tables.each do |table, count|
         log.debug "Loading '#{table}' schema\n"
-        Tapsoob::Utils.load_schema(dump_path, database_url, table)
+        # Reuse existing db connection for better performance
+        Tapsoob::Utils.load_schema(dump_path, db, table)
         progress.inc(1)
       end
       progress.finish

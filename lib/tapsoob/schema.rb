@@ -103,8 +103,10 @@ END_MIG
       JSON.generate(idxs)
     end
 
-    def load(database_url, schema, options = { drop: false })
-      Sequel.connect(database_url) do |db|
+    def load(database_url_or_db, schema, options = { drop: false })
+      # Accept either a database URL or an existing connection object
+      if database_url_or_db.is_a?(Sequel::Database)
+        db = database_url_or_db
         db.extension :schema_dumper
         klass = eval(schema)
         if options[:drop]
@@ -118,6 +120,22 @@ END_MIG
           db.run("SET foreign_key_checks = 1") if [:mysql, :mysql2].include?(db.adapter_scheme)
         end
         klass.apply(db, :up)
+      else
+        Sequel.connect(database_url_or_db) do |db|
+          db.extension :schema_dumper
+          klass = eval(schema)
+          if options[:drop]
+            # Start special hack for MySQL
+            db.run("SET foreign_key_checks = 0") if [:mysql, :mysql2].include?(db.adapter_scheme)
+
+            # Run down migration
+            klass.apply(db, :down)
+
+            # End special hack for MySQL
+            db.run("SET foreign_key_checks = 1") if [:mysql, :mysql2].include?(db.adapter_scheme)
+          end
+          klass.apply(db, :up)
+        end
       end
     end
 

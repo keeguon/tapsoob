@@ -161,9 +161,16 @@ Data : #{data}
       end
     end
 
-    def load_schema(dump_path, database_url, table)
-      schema = File.join(dump_path, "schemas", "#{table}.rb")
-      schema_bin(:load, database_url, schema.to_s)
+    def load_schema(dump_path, database_url_or_db, table)
+      schema_file = File.join(dump_path, "schemas", "#{table}.rb")
+      schema_content = File.read(schema_file)
+
+      # If we have a connection object, use it directly for better performance
+      if database_url_or_db.is_a?(Sequel::Database)
+        Tapsoob::Schema.load(database_url_or_db, schema_content)
+      else
+        schema_bin(:load, database_url_or_db, schema_file)
+      end
     end
 
     def load_indexes(database_url, index)
