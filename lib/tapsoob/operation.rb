@@ -4,8 +4,7 @@ require 'thread'
 
 require 'tapsoob/data_stream'
 require 'tapsoob/log'
-require 'tapsoob/progress_bar'
-require 'tapsoob/multi_progress_bar'
+require 'tapsoob/progress'
 require 'tapsoob/schema'
 
 module Tapsoob
