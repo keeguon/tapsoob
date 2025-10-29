@@ -40,9 +40,9 @@ class MultiProgressBar
     @mutex.synchronize do
       return unless @active
 
-      # Throttle updates to avoid flickering (max 10 updates per second)
+      # Throttle updates to avoid flickering (max 2 updates per second)
       now = Time.now
-      return if now - @last_update < 0.1
+      return if now - @last_update < 0.5
       @last_update = now
 
       redraw_all
@@ -142,9 +142,10 @@ class ThreadSafeProgressBar < ProgressBar
   def render_to(out)
     # Recalculate terminal width to handle resizes and use full width
     width = get_width
-    # The bar gets the remaining space after: title (14) + " " + percentage (4) + " " + "|" + "|" + " " + stat (15)
-    # That's approximately 37 characters, so bar gets width - 37
-    @terminal_width = [width - 37, 20].max
+    # Calculate bar width: total_width - (title + spaces + percentage + bar_borders + timer)
+    # title(14) + " "(1) + percentage(4) + " "(1) + "|"(1) + "|"(1) + " "(1) + timer(15) = 39 chars
+    # Add extra padding for timer fluctuations and safety margin
+    @terminal_width = [width - 42, 20].max
 
     arguments = @format_arguments.map {|method|
       method = sprintf("fmt_%s", method)
@@ -153,8 +154,9 @@ class ThreadSafeProgressBar < ProgressBar
     line = sprintf(@format, *arguments)
 
     # Ensure line doesn't exceed terminal width to prevent wrapping
-    if line.length > width - 1
-      line = line[0, width - 1]
+    # Leave 2 chars margin for safety
+    if line.length > width - 2
+      line = line[0, width - 2]
     end
 
     out.print(line)
