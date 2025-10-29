@@ -75,22 +75,18 @@ class MultiProgressBar
     return unless @active
     return if @bars.empty?
 
-    # Move up to first bar (cursor is currently after last bar)
+    # Move up to first bar (cursor is currently after last bar on line N+1)
     @out.print "\e[#{@bars.length}A" if @bars.length > 0
 
     # Redraw each bar on its own line
-    @bars.each_with_index do |bar, i|
+    @bars.each do |bar|
       @out.print "\r\e[K"  # Move to start of line and clear it
       bar.render_to(@out)
-
-      # Move to next line (but not after the last bar)
-      if i < @bars.length - 1
-        @out.print "\n"
-      end
+      @out.print "\n"  # Always move to next line (moves us down by 1)
     end
 
-    # Move to the line after the last bar (where cursor should rest)
-    @out.print "\n\r"
+    # After drawing N bars and moving down N times, we're back at line N+1
+    # No need to add extra lines - cursor is already in the right position
     @out.flush
   end
 
@@ -116,6 +112,7 @@ class ThreadSafeProgressBar < ProgressBar
   def initialize(title, total, multi_progress_bar, bar_index)
     @multi_progress_bar = multi_progress_bar
     @bar_index = bar_index
+    @out = STDOUT  # Need this for get_width to work
     # Don't call parent initialize, we'll manage output ourselves
     @title = title
     @total = total
@@ -138,17 +135,17 @@ class ThreadSafeProgressBar < ProgressBar
 
   # Render this bar to the given output stream
   def render_to(out)
+    # Recalculate terminal width to handle resizes and use full width
+    width = get_width
+    # The bar gets the remaining space after: title (14) + " " + percentage (4) + " " + "|" + "|" + " " + stat (15)
+    # That's approximately 37 characters, so bar gets width - 37
+    @terminal_width = [width - 37, 20].max
+
     arguments = @format_arguments.map {|method|
       method = sprintf("fmt_%s", method)
       send(method)
     }
     line = sprintf(@format, *arguments)
-
-    # Truncate or pad to terminal width
-    width = @terminal_width + @title_width + 20 # approximate
-    if line.length >= width
-      line = line[0, width - 1]
-    end
 
     out.print(line)
   end
