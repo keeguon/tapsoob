@@ -183,7 +183,8 @@ module Tapsoob
 
       progress = ProgressBar.new('Schema', tables.size)
       tables.each do |table_name, count|
-        schema_data = Tapsoob::Schema.dump_table(database_url, table_name, @opts.slice(:indexes, :same_db))
+        # Reuse existing db connection for better performance
+        schema_data = Tapsoob::Schema.dump_table(db, table_name, @opts.slice(:indexes, :same_db))
         log.debug "Table: #{table_name}\n#{schema_data}\n"
         output = Tapsoob::Utils.export_schema(dump_path, table_name, schema_data)
         puts output if dump_path.nil? && output

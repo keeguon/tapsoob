@@ -31,9 +31,11 @@ END_MIG
       template.result(binding)
     end
 
-    def dump_table(database_url, table, options)
+    def dump_table(database_url_or_db, table, options)
       table = table.to_sym
-      Sequel.connect(database_url) do |db|
+      # Accept either a database URL or an existing connection object
+      if database_url_or_db.is_a?(Sequel::Database)
+        db = database_url_or_db
         db.extension :schema_dumper
         <<END_MIG
 Class.new(Sequel::Migration) do
@@ -46,6 +48,21 @@ Class.new(Sequel::Migration) do
   end
 end
 END_MIG
+      else
+        Sequel.connect(database_url_or_db) do |db|
+          db.extension :schema_dumper
+          <<END_MIG
+Class.new(Sequel::Migration) do
+  def up
+    #{db.dump_table_schema(table, options)}
+  end
+
+  def down
+    drop_table("#{table}", if_exists: true)
+  end
+end
+END_MIG
+        end
       end
     end
 
