@@ -10,16 +10,24 @@ class MultiProgressBar
     @mutex = Mutex.new
     @active = true
     @out = STDOUT
+    @initialized = false
+    @last_update = Time.now
   end
 
   # Create a new progress bar and return it
   def create_bar(title, total)
     @mutex.synchronize do
-      bar = ThreadSafeProgressBar.new(title, total, self)
+      bar = ThreadSafeProgressBar.new(title, total, self, @bars.length)
       @bars << bar
 
-      # Reserve space for this bar
-      redraw_all
+      # Reserve a line for this new bar
+      @out.print "\n"
+      @out.flush
+
+      # Initialize space on first bar creation
+      unless @initialized
+        @initialized = true
+      end
 
       bar
     end
@@ -28,23 +36,36 @@ class MultiProgressBar
   # Called by individual bars when they update
   def update
     @mutex.synchronize do
-      redraw_all if @active
+      return unless @active
+
+      # Throttle updates to avoid flickering (max 10 updates per second)
+      now = Time.now
+      return if now - @last_update < 0.1
+      @last_update = now
+
+      redraw_all
     end
   end
 
   # Finish a specific bar
   def finish_bar(bar)
     @mutex.synchronize do
-      redraw_all
+      if @active
+        @last_update = Time.now - 1  # Force immediate update
+        redraw_all
+      end
     end
   end
 
-  # Stop all progress bars
+  # Stop all progress bars and keep them visible
   def stop
     @mutex.synchronize do
       @active = false
-      # Move cursor to bottom
-      @out.print "\n" * @bars.count
+      # Final redraw to show completed state
+      redraw_all_final
+      # Move cursor past all bars
+      @out.print "\n"
+      @out.flush
     end
   end
 
@@ -52,25 +73,49 @@ class MultiProgressBar
 
   def redraw_all
     return unless @active
+    return if @bars.empty?
 
-    # Move cursor up to the first bar
-    @out.print "\r" + ("\e[A" * [@bars.count - 1, 0].max) if @bars.count > 1
+    # Move up to first bar (cursor is currently after last bar)
+    @out.print "\e[#{@bars.length}A" if @bars.length > 0
 
-    @bars.each_with_index do |bar, index|
-      @out.print "\r"
+    # Redraw each bar on its own line
+    @bars.each_with_index do |bar, i|
+      @out.print "\r\e[K"  # Move to start of line and clear it
       bar.render_to(@out)
-      @out.print "\n" unless index == @bars.count - 1
+
+      # Move to next line (but not after the last bar)
+      if i < @bars.length - 1
+        @out.print "\n"
+      end
     end
 
-    # Move cursor back to last line
+    # Move to the line after the last bar (where cursor should rest)
+    @out.print "\n\r"
+    @out.flush
+  end
+
+  def redraw_all_final
+    return if @bars.empty?
+
+    # Move up to first bar
+    @out.print "\e[#{@bars.length}A" if @bars.length > 0
+
+    # Draw final state of each bar
+    @bars.each do |bar|
+      @out.print "\r\e[K"  # Move to start of line and clear it
+      bar.render_to(@out)
+      @out.print "\n"
+    end
+
     @out.flush
   end
 end
 
 # Thread-safe progress bar that reports to a MultiProgressBar
 class ThreadSafeProgressBar < ProgressBar
-  def initialize(title, total, multi_progress_bar)
+  def initialize(title, total, multi_progress_bar, bar_index)
     @multi_progress_bar = multi_progress_bar
+    @bar_index = bar_index
     # Don't call parent initialize, we'll manage output ourselves
     @title = title
     @total = total
