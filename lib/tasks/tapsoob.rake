@@ -1,8 +1,14 @@
 namespace :tapsoob do
-  desc "Pulls a database to your filesystem"
+  desc "Pulls a database to your filesystem (PARALLEL=4 for 4 workers)"
   task :pull => :environment do
     # Default options
-    opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :schema => true, :data => true, :indexes_first => false, :progress => true}
+    opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :schema => true, :data => true, :indexes_first => false, :progress => true, :parallel => 1}
+
+    # Allow overriding parallel workers via PARALLEL environment variable
+    if ENV['PARALLEL'] && ENV['PARALLEL'].to_i > 0
+      opts[:parallel] = ENV['PARALLEL'].to_i
+      puts "Using #{opts[:parallel]} parallel workers"
+    end
 
     # Get the dump_path
     dump_path = File.expand_path(Rails.root.join("db", Time.now.strftime("%Y%m%d%I%M%S%p"))).to_s
@@ -20,10 +26,16 @@ namespace :tapsoob do
     Rake::Task["tapsoob:clean"].invoke
   end
 
-  desc "Push a compatible dump on your filesystem to a database"
+  desc "Push a compatible dump on your filesystem to a database (PARALLEL=4 for 4 workers)"
   task :push, [:timestamp] => :environment do |t, args|
     # Default options
-    opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :schema => true, :data => true, :indexes_first => false, :progress => true}
+    opts={:default_chunksize => 1000, :debug => false, :resume_filename => nil, :disable_compression => false, :schema => true, :data => true, :indexes_first => false, :progress => true, :parallel => 1}
+
+    # Allow overriding parallel workers via PARALLEL environment variable
+    if ENV['PARALLEL'] && ENV['PARALLEL'].to_i > 0
+      opts[:parallel] = ENV['PARALLEL'].to_i
+      puts "Using #{opts[:parallel]} parallel workers"
+    end
 
     # Get the dumps
     dumps = Dir[Rails.root.join("db", "*/")].select { |e| e =~ /([0-9]{14})([A-Z]{2})/ }.sort

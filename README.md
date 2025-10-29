@@ -36,7 +36,7 @@ You can list all available options using the command:
     tapsoob push -h
 
 
-## NEW : Piping your schema/indexes/data
+## Piping your schema/indexes/data
 
 Due to some needs we added ways to pipe your schema/indexes/data directly from one database to another, here's an equivalent of the export/import process described above using this technique :
 
@@ -60,6 +60,16 @@ If you're using Rails, there's also two Rake tasks provided:
 * `tapsoob:pull` which dumps the database into a new folder under the `db` folder
 * `tapsoob:push` which reads the last dump you made from `tapsoob:pull` from the `db` folder
 
+## NEW : Full parallelization support from 0.6.1 onwards
+
+You can now dump/load a full database or data using parallelization to speed up the process at memory cost and database load like so :
+
+```
+tapsoob pull [OPTIONS] <dump_path> <database_url> -j <number_of_threads>
+tapsoob push [OPTIONS] <dump_path> <database_url> -j <number_of_threads>
+```
+
+It defaults to a single thread as per pre 0.6.1, it is also appliable to `tapsoob data pull/push` but only when dumping to files, you can't parallelize and pipe for obvious reasons, it'll fall back to a single thread with a warning if you try to do this for safety.
 
 ## Notes
 

@@ -14,10 +14,20 @@ module Tapsoob
       option :chunksize, desc: "Initial chunksize", default: 1000, type: :numeric, aliases: "-c"
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
+      option :parallel, desc: "Number of parallel workers for table processing (default: 1)", default: 1, type: :numeric, aliases: "-j"
       option :progress, desc: "Show progress", default: true, type: :boolean, aliases: "-p"
       option :debug, desc: "Enable debug messages", default: false, type: :boolean, aliases: "-d"
       def pull(database_url, dump_path = nil)
-        op = Tapsoob::Operation.factory(:pull, database_url, dump_path, parse_opts(options))
+        opts = parse_opts(options)
+
+        # Force serial mode when outputting to STDOUT (for piping)
+        # Parallel mode would interleave output and corrupt the JSON stream
+        if dump_path.nil? && opts[:parallel] && opts[:parallel] > 1
+          STDERR.puts "Warning: Parallel mode disabled when outputting to STDOUT (for piping)"
+          opts[:parallel] = 1
+        end
+
+        op = Tapsoob::Operation.factory(:pull, database_url, dump_path, opts)
         op.pull_data
       end
 
@@ -25,36 +35,48 @@ module Tapsoob
       option :chunksize, desc: "Initial chunksize", default: 1000, type: :numeric, aliases: "-c"
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
+      option :parallel, desc: "Number of parallel workers for table processing (default: 1)", default: 1, type: :numeric, aliases: "-j"
       option :progress, desc: "Show progress", default: true, type: :boolean, aliases: "-p"
       option :purge, desc: "Purge data in tables prior to performing the import", default: false, type: :boolean
       option :"skip-duplicates", desc: "Remove duplicates when loading data", default: false, type: :boolean
       option :"discard-identity", desc: "Remove identity when pushing data (may result in creating duplicates)", default: false, type: :boolean
       option :debug, desc: "Enable debug messages", default: false, type: :boolean, aliases: "-d"
       def push(database_url, dump_path = nil)
-        # instantiate stuff
-        data = []
         opts = parse_opts(options)
 
-        # read data from dump_path or from STDIN
+        # If dump_path is provided, use the Operation class for proper parallel support
         if dump_path && Dir.exist?(dump_path)
-          files = Dir[Pathname.new(dump_path).join("*.json")]
-          files.each { |file| data << JSON.parse(File.read(file), symbolize_names: true) }
+          op = Tapsoob::Operation.factory(:push, database_url, dump_path, opts)
+          op.push_data
         else
+          # STDIN mode: read and import data directly (no parallel support for STDIN)
+          if opts[:parallel] && opts[:parallel] > 1
+            STDERR.puts "Warning: Parallel mode not supported when reading from STDIN"
+          end
+
+          data = []
           STDIN.each_line { |line| data << JSON.parse(line, symbolize_names: true) }
-        end
 
-        # import data
-        data.each do |table|
-          stream = Tapsoob::DataStream.factory(db(database_url, opts), {
-            table_name: table[:table_name],
-            chunksize: opts[:default_chunksize]
-          }, { :"discard-identity" => opts[:"discard-identity"] || false, :purge => opts[:purge] || false, :debug => opts[:debug] })
+          # import data
+          data.each do |table|
+            table_name = table[:table_name]
 
-          begin
-            stream.import_rows(table)
-          rescue Exception => e
-            stream.log.debug e.message
-            STDERR.puts "Error loading data in #{table[:table_name]} : #{e.message}"
+            # Truncate table if purge option is enabled
+            if opts[:purge]
+              db(database_url, opts)[table_name.to_sym].truncate
+            end
+
+            stream = Tapsoob::DataStream.factory(db(database_url, opts), {
+              table_name: table_name,
+              chunksize: opts[:default_chunksize]
+            }, { :"discard-identity" => opts[:"discard-identity"] || false, :purge => opts[:purge] || false, :debug => opts[:debug] })
+
+            begin
+              stream.import_rows(table)
+            rescue Exception => e
+              stream.log.debug e.message
+              STDERR.puts "Error loading data in #{table_name} : #{e.message}"
+            end
           end
         end
       end
@@ -65,6 +87,7 @@ module Tapsoob
           opts = {
             progress: options[:progress],
             tables: options[:tables],
+            parallel: options[:parallel],
             debug: options[:debug]
           }
 
@@ -85,7 +108,9 @@ module Tapsoob
         end
 
         def db(database_url, opts = {})
-          @db ||= Sequel.connect(database_url)
+          # Support connection pooling for parallel operations
+          parallel_workers = opts[:parallel] || 1
+          @db ||= Sequel.connect(database_url, max_connections: parallel_workers * 2)
           @db.loggers << Tapsoob.log if opts[:debug]
 
           # Set parameters
