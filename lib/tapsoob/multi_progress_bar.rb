@@ -20,14 +20,16 @@ class MultiProgressBar
       bar = ThreadSafeProgressBar.new(title, total, self, @bars.length)
       @bars << bar
 
-      # Reserve a line for this new bar
-      @out.print "\n"
-      @out.flush
-
-      # Initialize space on first bar creation
+      # Reserve a line for this new bar - print placeholder
       unless @initialized
         @initialized = true
+        # First bar - just print a newline to start the section
+        @out.print "\n"
+      else
+        # Subsequent bars - add a new line
+        @out.print "\n"
       end
+      @out.flush
 
       bar
     end
@@ -75,7 +77,8 @@ class MultiProgressBar
     return unless @active
     return if @bars.empty?
 
-    # Move up to first bar (cursor is currently after last bar on line N+1)
+    # Move cursor to start of line, then move up to first bar
+    @out.print "\r"
     @out.print "\e[#{@bars.length}A" if @bars.length > 0
 
     # Redraw each bar on its own line
@@ -86,14 +89,15 @@ class MultiProgressBar
     end
 
     # After drawing N bars and moving down N times, we're back at line N+1
-    # No need to add extra lines - cursor is already in the right position
+    # Cursor is at the start of the line after all bars
     @out.flush
   end
 
   def redraw_all_final
     return if @bars.empty?
 
-    # Move up to first bar
+    # Move cursor to start of line, then move up to first bar
+    @out.print "\r"
     @out.print "\e[#{@bars.length}A" if @bars.length > 0
 
     # Draw final state of each bar
@@ -130,6 +134,7 @@ class ThreadSafeProgressBar < ProgressBar
 
   # Override show to notify multi-progress instead of direct output
   def show
+    @previous_time = ::Time.now  # Update to prevent time-based refresh spam
     @multi_progress_bar.update
   end
 
@@ -146,6 +151,11 @@ class ThreadSafeProgressBar < ProgressBar
       send(method)
     }
     line = sprintf(@format, *arguments)
+
+    # Ensure line doesn't exceed terminal width to prevent wrapping
+    if line.length > width - 1
+      line = line[0, width - 1]
+    end
 
     out.print(line)
   end
