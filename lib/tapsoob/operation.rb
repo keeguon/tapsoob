@@ -393,9 +393,12 @@ module Tapsoob
       raw_idxs = Tapsoob::Schema.indexes_individual(database_url)
       idxs     = (raw_idxs && raw_idxs.length >= 2 ? JSON.parse(raw_idxs) : {})
 
-      apply_table_filter(idxs).each do |table, indexes|
-        next unless indexes.size > 0
-        progress = ProgressBar.new(table, indexes.size)
+      # Calculate max title width for consistent alignment
+      filtered_idxs = apply_table_filter(idxs).select { |table, indexes| indexes.size > 0 }
+      max_title_width = filtered_idxs.keys.map { |table| "#{table} indexes".length }.max || 14
+
+      filtered_idxs.each do |table, indexes|
+        progress = ProgressBar.new("#{table} indexes", indexes.size, STDOUT, max_title_width)
         indexes.each do |idx|
           output = Tapsoob::Utils.export_indexes(dump_path, table, idx)
           puts output if dump_path.nil? && output
@@ -449,9 +452,12 @@ module Tapsoob
 
       log.info "Sending indexes"
 
-      apply_table_filter(idxs).each do |table, indexes|
-        next unless indexes.size > 0
-        progress = ProgressBar.new(table, indexes.size)
+      # Calculate max title width for consistent alignment
+      filtered_idxs = apply_table_filter(idxs).select { |table, indexes| indexes.size > 0 }
+      max_title_width = filtered_idxs.keys.map { |table| "#{table} indexes".length }.max || 14
+
+      filtered_idxs.each do |table, indexes|
+        progress = ProgressBar.new("#{table} indexes", indexes.size, STDOUT, max_title_width)
         indexes.each do |idx|
           Tapsoob::Utils.load_indexes(database_url, idx)
           progress.inc(1)

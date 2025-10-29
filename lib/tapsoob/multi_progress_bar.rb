@@ -10,52 +10,65 @@ class MultiProgressBar
     @mutex = Mutex.new
     @active = true
     @out = STDOUT
-    @initialized = false
     @last_update = Time.now
+    @reserved_lines = 0  # Track how many lines we've actually reserved
+    @max_title_width = 14  # Minimum width, will grow with longer titles
   end
 
   # Create a new progress bar and return it
   def create_bar(title, total)
     @mutex.synchronize do
-      bar = ThreadSafeProgressBar.new(title, total, self, @bars.length)
-      @bars << bar
+      # Remove any existing bar with the same title to prevent duplicates
+      @bars.reject! { |b| b.title == title }
 
-      # Reserve a line for this new bar - print placeholder
-      unless @initialized
-        @initialized = true
-        # First bar - just print a newline to start the section
+      # Update max title width to accommodate longer titles
+      @max_title_width = [@max_title_width, title.length].max
+
+      bar = ThreadSafeProgressBar.new(title, total, self)
+
+      # Reserve a line for this new bar during active updates
+      # Cap at 2 * max_bars to show active workers + some recent finished bars
+      if @reserved_lines < @max_bars * 2
         @out.print "\n"
-      else
-        # Subsequent bars - add a new line
-        @out.print "\n"
+        @out.flush
+        @reserved_lines += 1
       end
-      @out.flush
 
+      @bars << bar
       bar
     end
+  end
+
+  # Get the current maximum title width for alignment
+  # Note: Always called from within synchronized methods, so no mutex needed
+  def max_title_width
+    @max_title_width
   end
 
   # Called by individual bars when they update
   def update
     @mutex.synchronize do
       return unless @active
+      return unless should_redraw?
 
-      # Throttle updates to avoid flickering (max 2 updates per second)
-      now = Time.now
-      return if now - @last_update < 0.5
-      @last_update = now
-
+      @last_update = Time.now
       redraw_all
     end
   end
 
-  # Finish a specific bar
+  # Finish a specific bar - mark it as completed
   def finish_bar(bar)
     @mutex.synchronize do
-      if @active
-        @last_update = Time.now - 1  # Force immediate update
+      return unless @active
+
+      bar.mark_finished
+
+      # Respect throttle when finishing to avoid spamming redraws
+      if should_redraw?
+        @last_update = Time.now
         redraw_all
       end
+      # If throttled, the next regular update will show the finished state
     end
   end
 
@@ -63,8 +76,12 @@ class MultiProgressBar
   def stop
     @mutex.synchronize do
       @active = false
-      # Final redraw to show completed state
-      redraw_all_final
+
+      # Final cleanup: remove any duplicate titles (keep the last occurrence of each unique title)
+      @bars = @bars.reverse.uniq { |bar| bar.title }.reverse
+
+      # Final redraw to show completed state (skip active check)
+      redraw_all(true)
       # Move cursor past all bars
       @out.print "\n"
       @out.flush
@@ -73,37 +90,60 @@ class MultiProgressBar
 
   private
 
-  def redraw_all
-    return unless @active
+  # Check if enough time has passed to redraw (throttle to 10 updates/sec)
+  def should_redraw?
+    Time.now - @last_update >= 0.1
+  end
+
+  def redraw_all(force = false)
+    return unless force || @active
     return if @bars.empty?
 
-    # Move cursor to start of line, then move up to first bar
-    @out.print "\r"
-    @out.print "\e[#{@bars.length}A" if @bars.length > 0
+    if force && !@active
+      render_final_display
+    else
+      render_active_display
+    end
+  end
 
-    # Redraw each bar on its own line
-    @bars.each do |bar|
-      @out.print "\r\e[K"  # Move to start of line and clear it
-      bar.render_to(@out)
-      @out.print "\n"  # Always move to next line (moves us down by 1)
+  # Final display: show all completed bars
+  def render_final_display
+    # Clear the reserved lines first
+    if @reserved_lines > 0
+      @out.print "\r\e[#{@reserved_lines}A"
+      @reserved_lines.times { @out.print "\r\e[K\n" }
     end
 
-    # After drawing N bars and moving down N times, we're back at line N+1
-    # Cursor is at the start of the line after all bars
+    # Print all bars (adds new lines as needed)
+    @bars.each do |bar|
+      @out.print "\r\e[K"
+      bar.render_to(@out)
+      @out.print "\n"
+    end
+
     @out.flush
   end
 
-  def redraw_all_final
-    return if @bars.empty?
+  # Normal operation: show active bars + recent finished in reserved space
+  def render_active_display
+    return if @reserved_lines == 0
 
-    # Move cursor to start of line, then move up to first bar
-    @out.print "\r"
-    @out.print "\e[#{@bars.length}A" if @bars.length > 0
+    # Partition bars in a single pass for efficiency
+    active_bars, finished_bars = @bars.partition { |b| !b.finished? }
 
-    # Draw final state of each bar
-    @bars.each do |bar|
-      @out.print "\r\e[K"  # Move to start of line and clear it
-      bar.render_to(@out)
+    # Build display: active bars first, then recent finished to fill remaining space
+    # Ensure we don't request negative count from .last()
+    remaining_space = [@reserved_lines - active_bars.length, 0].max
+    bars_to_draw = active_bars + finished_bars.last(remaining_space)
+
+    # If we have more bars than reserved lines, show only the most recent
+    bars_to_draw = bars_to_draw.last(@reserved_lines) if bars_to_draw.length > @reserved_lines
+
+    # Move up and redraw in reserved space
+    @out.print "\r\e[#{@reserved_lines}A"
+    @reserved_lines.times do |i|
+      @out.print "\r\e[K"
+      bars_to_draw[i].render_to(@out) if i < bars_to_draw.length
       @out.print "\n"
     end
 
@@ -113,9 +153,10 @@ end
 
 # Thread-safe progress bar that reports to a MultiProgressBar
 class ThreadSafeProgressBar < ProgressBar
-  def initialize(title, total, multi_progress_bar, bar_index)
+  attr_reader :title
+
+  def initialize(title, total, multi_progress_bar)
     @multi_progress_bar = multi_progress_bar
-    @bar_index = bar_index
     @out = STDOUT  # Need this for get_width to work
     # Don't call parent initialize, we'll manage output ourselves
     @title = title
@@ -127,8 +168,6 @@ class ThreadSafeProgressBar < ProgressBar
     @finished_p = false
     @start_time = ::Time.now
     @previous_time = @start_time
-    @title_width = 14
-    @format = "%-#{@title_width}s %3d%% %s %s"
     @format_arguments = [:title, :percentage, :bar, :stat]
   end
 
@@ -140,24 +179,26 @@ class ThreadSafeProgressBar < ProgressBar
 
   # Render this bar to the given output stream
   def render_to(out)
+    # Get dynamic title width from MultiProgressBar for consistent alignment
+    # Store as instance variable so parent class fmt_* methods can use it
+    @title_width = @multi_progress_bar.max_title_width
+
     # Recalculate terminal width to handle resizes and use full width
     width = get_width
-    # Calculate bar width: total_width - (title + spaces + percentage + bar_borders + timer)
-    # title(14) + " "(1) + percentage(4) + " "(1) + "|"(1) + "|"(1) + " "(1) + timer(15) = 39 chars
-    # Add extra padding for timer fluctuations and safety margin
-    @terminal_width = [width - 42, 20].max
+    # Calculate bar width: total_width - fixed_elements - padding
+    # Fixed: title(variable) + " "(1) + percentage(4) + " "(1) + "|"(1) + "|"(1) + " "(1) + timer(15) = title_width + 25
+    # Padding: +3 for timer fluctuations and safety
+    fixed_chars = @title_width + 28
+    @terminal_width = [width - fixed_chars, 20].max
 
-    arguments = @format_arguments.map {|method|
-      method = sprintf("fmt_%s", method)
-      send(method)
-    }
-    line = sprintf(@format, *arguments)
+    # Build format string with dynamic title width
+    format = "%-#{@title_width}s %3d%% %s %s"
+    arguments = @format_arguments.map { |method| send("fmt_#{method}") }
+    line = sprintf(format, *arguments)
 
     # Ensure line doesn't exceed terminal width to prevent wrapping
     # Leave 2 chars margin for safety
-    if line.length > width - 2
-      line = line[0, width - 2]
-    end
+    line = line[0, width - 2] if line.length > width - 2
 
     out.print(line)
   end
@@ -167,10 +208,19 @@ class ThreadSafeProgressBar < ProgressBar
     # no-op
   end
 
+  # Mark this bar as finished (for tracking)
+  def mark_finished
+    @finished_p = true
+  end
+
+  # Override to use the same @finished_p flag
+  def finished?
+    @finished_p
+  end
+
   # Override finish to notify multi-progress
   def finish
     @current = @total
-    @finished_p = true
     @multi_progress_bar.finish_bar(self)
   end
 

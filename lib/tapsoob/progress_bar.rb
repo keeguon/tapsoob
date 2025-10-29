@@ -13,7 +13,7 @@
 class ProgressBar
   VERSION = "0.9"
 
-  def initialize (title, total, out = STDOUT)
+  def initialize (title, total, out = STDOUT, title_width = nil)
     @title = title
     @total = total
     @out = out
@@ -24,7 +24,8 @@ class ProgressBar
     @finished_p = false
     @start_time = ::Time.now
     @previous_time = @start_time
-    @title_width = 14
+    # Set title width: use provided width, or accommodate the title, with a minimum of 14
+    @title_width = title_width || [title.length, 14].max
     @format = "%-#{@title_width}s %3d%% %s %s"
     @format_arguments = [:title, :percentage, :bar, :stat]
     clear
