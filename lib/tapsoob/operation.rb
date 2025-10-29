@@ -436,7 +436,9 @@ module Tapsoob
       log.info "#{tables.size} tables, #{format_number(record_count)} records"
 
       tables.each do |table_name, count|
-        next unless File.exist?(File.join(dump_path, "data", "#{table_name}.json")) || File.exist?(File.join(dump_path, "data", "#{table_name}.json")) && JSON.parse(File.read(File.join(dump_path, "data", "#{table_name}.json")))["data"].size == 0
+        # Skip if data file doesn't exist or has no data
+        data_file = File.join(dump_path, "data", "#{table_name}.json")
+        next unless File.exist?(data_file) && count > 0
         db[table_name.to_sym].truncate if @opts[:purge]
         stream = Tapsoob::DataStream.factory(db, {
           :table_name => table_name,
@@ -532,8 +534,13 @@ module Tapsoob
       tbls = Dir.glob(File.join(dump_path, "schemas", "*")).map { |path| File.basename(path, ".rb") }
       tbls.each do |table|
         if File.exist?(File.join(dump_path, "data", "#{table}.json"))
-          data = JSON.parse(File.read(File.join(dump_path, "data", "#{table}.json")))
-          tables_with_counts[table] = data["data"].size
+          # Read NDJSON format - each line is a separate JSON chunk
+          total_rows = 0
+          File.readlines(File.join(dump_path, "data", "#{table}.json")).each do |line|
+            chunk = JSON.parse(line.strip)
+            total_rows += chunk["data"].size if chunk["data"]
+          end
+          tables_with_counts[table] = total_rows
         else
           tables_with_counts[table] = 0
         end
