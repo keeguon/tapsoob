@@ -1,9 +1,11 @@
 # -*- encoding : utf-8 -*-
 require 'sequel'
+require 'thread'
 
 require 'tapsoob/data_stream'
 require 'tapsoob/log'
 require 'tapsoob/progress_bar'
+require 'tapsoob/multi_progress_bar'
 require 'tapsoob/schema'
 
 module Tapsoob
@@ -117,7 +119,7 @@ module Tapsoob
     end
 
     def db
-      @db ||= Sequel.connect(database_url)
+      @db ||= Sequel.connect(database_url, max_connections: parallel_workers * 2)
       @db.extension :schema_dumper
       @db.loggers << Tapsoob.log if opts[:debug]
 
@@ -128,6 +130,24 @@ module Tapsoob
       end
 
       @db
+    end
+
+    def parallel?
+      parallel_workers > 1
+    end
+
+    def parallel_workers
+      @parallel_workers ||= [opts[:parallel].to_i, 1].max
+    end
+
+    def completed_tables_mutex
+      @completed_tables_mutex ||= Mutex.new
+    end
+
+    def add_completed_table(table_name)
+      completed_tables_mutex.synchronize do
+        completed_tables << table_name.to_s
+      end
     end
 
     def format_number(num)
@@ -198,6 +218,14 @@ module Tapsoob
 
       log.info "#{tables.size} tables, #{format_number(record_count)} records"
 
+      if parallel?
+        pull_data_parallel
+      else
+        pull_data_serial
+      end
+    end
+
+    def pull_data_serial
       tables.each do |table_name, count|
         stream   = Tapsoob::DataStream.factory(db, {
           :chunksize  => default_chunksize,
@@ -207,6 +235,38 @@ module Tapsoob
         progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
         pull_data_from_table(stream, progress)
       end
+    end
+
+    def pull_data_parallel
+      log.info "Using #{parallel_workers} parallel workers"
+
+      multi_progress = opts[:progress] ? MultiProgressBar.new(parallel_workers) : nil
+      table_queue = Queue.new
+      tables.each { |table_name, count| table_queue << [table_name, count] }
+
+      workers = (1..parallel_workers).map do
+        Thread.new do
+          loop do
+            break if table_queue.empty?
+
+            table_name, count = table_queue.pop(true) rescue break
+
+            # Each thread gets its own connection from the pool
+            stream = Tapsoob::DataStream.factory(db, {
+              :chunksize  => default_chunksize,
+              :table_name => table_name
+            }, { :debug => opts[:debug] })
+
+            estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
+            progress = multi_progress ? multi_progress.create_bar(table_name.to_s, estimated_chunks) : nil
+
+            pull_data_from_table(stream, progress)
+          end
+        end
+      end
+
+      workers.each(&:join)
+      multi_progress.stop if multi_progress
     end
 
     def pull_partial_data
@@ -280,7 +340,7 @@ module Tapsoob
       end
 
       progress.finish if progress
-      completed_tables << stream.table_name.to_s
+      add_completed_table(stream.table_name)
       self.stream_state = {}
     end
 
@@ -437,6 +497,14 @@ module Tapsoob
 
       log.info "#{tables.size} tables, #{format_number(record_count)} records"
 
+      if parallel?
+        push_data_parallel
+      else
+        push_data_serial
+      end
+    end
+
+    def push_data_serial
       tables.each do |table_name, count|
         # Skip if data file doesn't exist or has no data
         data_file = File.join(dump_path, "data", "#{table_name}.json")
@@ -455,6 +523,49 @@ module Tapsoob
         progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
         push_data_from_file(stream, progress)
       end
+    end
+
+    def push_data_parallel
+      log.info "Using #{parallel_workers} parallel workers"
+
+      multi_progress = opts[:progress] ? MultiProgressBar.new(parallel_workers) : nil
+      table_queue = Queue.new
+
+      tables.each do |table_name, count|
+        data_file = File.join(dump_path, "data", "#{table_name}.json")
+        next unless File.exist?(data_file) && count > 0
+        table_queue << [table_name, count]
+      end
+
+      workers = (1..parallel_workers).map do
+        Thread.new do
+          loop do
+            break if table_queue.empty?
+
+            table_name, count = table_queue.pop(true) rescue break
+
+            # Each thread gets its own connection from the pool
+            db[table_name.to_sym].truncate if @opts[:purge]
+            stream = Tapsoob::DataStream.factory(db, {
+              :table_name => table_name,
+              :chunksize => default_chunksize
+            }, {
+              :"skip-duplicates" => opts[:"skip-duplicates"] || false,
+              :"discard-identity" => opts[:"discard-identity"] || false,
+              :purge => opts[:purge] || false,
+              :debug => opts[:debug]
+            })
+
+            estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
+            progress = multi_progress ? multi_progress.create_bar(table_name.to_s, estimated_chunks) : nil
+
+            push_data_from_file(stream, progress)
+          end
+        end
+      end
+
+      workers.each(&:join)
+      multi_progress.stop if multi_progress
     end
 
     def push_data_from_file(stream, progress)
@@ -510,7 +621,7 @@ module Tapsoob
       end
 
       progress.finish if progress
-      completed_tables << stream.table_name.to_s
+      add_completed_table(stream.table_name)
       self.stream_state = {}
     end
 

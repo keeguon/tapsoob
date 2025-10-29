@@ -22,6 +22,7 @@ module Tapsoob
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :"indexes", type: :boolean, default: false
       option :"same-db", type: :boolean, default: false
+      option :parallel, desc: "Number of parallel workers for table processing (default: 1)", default: 1, type: :numeric, aliases: "-j"
       option :progress, desc: "Show progress", default: true, type: :boolean
       option :debug, desc: "Enable debug messages", default: false, type: :boolean
       def pull(dump_path, database_url)
@@ -47,6 +48,7 @@ module Tapsoob
       option :purge, desc: "Purge data in tables prior to performing the import", default: false, type: :boolean, aliases: "-p"
       option :"skip-duplicates", desc: "Remove duplicates when loading data", default: false, type: :boolean
       option :"discard-identity", desc: "Remove identity when pushing data (may result in creating duplicates)", default: false, type: :boolean
+      option :parallel, desc: "Number of parallel workers for table processing (default: 1)", default: 1, type: :numeric, aliases: "-j"
       option :progress, desc: "Show progress", default: true, type: :boolean
       option :debug, desc: "Enable debug messages", default: false, type: :boolean
       def push(dump_path, database_url)
@@ -82,6 +84,7 @@ module Tapsoob
             indexes_first: options[:"indexes_first"],
             disable_compression: options[:"disable-compression"],
             tables: options[:tables],
+            parallel: options[:parallel],
             progress: options[:progress],
             debug: options[:debug]
           })
