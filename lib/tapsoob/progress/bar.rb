@@ -239,7 +239,3 @@ module Tapsoob
     end
   end
 end
-
-# Backward compatibility aliases
-ProgressBar = Tapsoob::Progress::Bar
-ReversedProgressBar = Tapsoob::Progress::ReversedBar

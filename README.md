@@ -14,6 +14,23 @@ Tapsoob currently rely on the Sequel ORM (<http://sequel.rubyforge.org/>) so we 
 If you're using either Oracle or Oracle XE you will need some extra requirements. If you're using Ruby you'll need to have your ORACLE_HOME environnement variable set properly and the `ruby-oci8` gem installed. However if you're using jRuby you'll need to have the official Oracle JDBC driver (see here for more informations: <http://www.oracle.com/technetwork/articles/dsl/jruby-oracle11g-330825.html>) and it should be loaded prior to using Tapsoob otherwise you won't be able to connect the database.
 
 
+## Recent changes
+
+### 0.7.0
+
+### Features
+
+* Introducing a new CLI interface when dumping/loading data using parallelization, much cleaner and better way to keep track of what's going on.
+* Introducing de-facto intra-table parallelization for large tables which makes a tremendous difference (10x speed boost in most cases).
+* When using the `--progress=false` or `--no-progress` option there's now PROGRESS data being outputted to STDERR (only when dumping/loading to/from a directory).
+
+### Internal changes
+
+* Moved all DataStream* related classes into a specific module.
+* Moved all Operation related classes into a specific module.
+* Moved all progress bars related Classes into a specific module.
+
+
 ## Exporting your data
 
     tapsoob pull [OPTIONS] <dump_path> <database_url>
@@ -60,7 +77,7 @@ If you're using Rails, there's also two Rake tasks provided:
 * `tapsoob:pull` which dumps the database into a new folder under the `db` folder
 * `tapsoob:push` which reads the last dump you made from `tapsoob:pull` from the `db` folder
 
-## NEW : Full parallelization support from 0.6.1 onwards
+## Parallelization support from 0.6.1 onwards
 
 You can now dump/load a full database or data using parallelization to speed up the process at memory cost and database load like so :
 
@@ -78,7 +95,6 @@ Your exports can be moved from one machine to another for backups or replication
 
 ## ToDo
 
-* Add a compression layer
 * Tests (in progress)
 
 

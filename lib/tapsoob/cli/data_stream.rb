@@ -27,7 +27,7 @@ module Tapsoob
           opts[:parallel] = 1
         end
 
-        op = Tapsoob::Operation.factory(:pull, database_url, dump_path, opts)
+        op = Tapsoob::Operation::Base.factory(:pull, database_url, dump_path, opts)
         op.pull_data
       end
 
@@ -46,7 +46,7 @@ module Tapsoob
 
         # If dump_path is provided, use the Operation class for proper parallel support
         if dump_path && Dir.exist?(dump_path)
-          op = Tapsoob::Operation.factory(:push, database_url, dump_path, opts)
+          op = Tapsoob::Operation::Base.factory(:push, database_url, dump_path, opts)
           op.push_data
         else
           # STDIN mode: read and import data directly (no parallel support for STDIN)
@@ -66,7 +66,7 @@ module Tapsoob
               db(database_url, opts)[table_name.to_sym].truncate
             end
 
-            stream = Tapsoob::DataStream.factory(db(database_url, opts), {
+            stream = Tapsoob::DataStream::Base.factory(db(database_url, opts), {
               table_name: table_name,
               chunksize: opts[:default_chunksize]
             }, { :"discard-identity" => opts[:"discard-identity"] || false, :purge => opts[:purge] || false, :debug => opts[:debug] })

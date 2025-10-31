@@ -19,7 +19,7 @@ namespace :tapsoob do
     FileUtils.mkpath "#{dump_path}/indexes"
 
     # Run operation
-    Tapsoob::Operation.factory(:pull, database_uri, dump_path, opts).run
+    Tapsoob::Operation::Base.factory(:pull, database_uri, dump_path, opts).run
 
     # Invoke cleanup task
     Rake::Task["tapsoob:clean"].reenable
@@ -53,7 +53,7 @@ namespace :tapsoob do
     end
 
     # Run operation
-    Tapsoob::Operation.factory(:push, database_uri, dump_path, opts).run
+    Tapsoob::Operation::Base.factory(:push, database_uri, dump_path, opts).run
   end
 
   desc "Cleanup old dumps"

@@ -125,7 +125,7 @@ module Tapsoob
           FileUtils.mkpath "#{dump_path}/data"
           FileUtils.mkpath "#{dump_path}/indexes"
 
-          Tapsoob::Operation.factory(method, database_url, dump_path, opts).run
+          Tapsoob::Operation::Base.factory(method, database_url, dump_path, opts).run
         end
 
         def clientresumexfer(method, dump_path, database_url, opts)
@@ -134,7 +134,6 @@ module Tapsoob
 
           dump_path = dump_path || session.delete(:dump_path)
 
-          require 'taps/operation'
 
           newsession = session.merge({
             :default_chunksize => opts[:default_chunksize],
@@ -142,7 +141,7 @@ module Tapsoob
             :resume => true
           })
 
-          Tapsoob::Operation.factory(method, database_url, dump_path, newsession).run
+          Tapsoob::Operation::Base.factory(method, database_url, dump_path, newsession).run
         end
     end
   end

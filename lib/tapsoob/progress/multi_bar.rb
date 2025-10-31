@@ -188,6 +188,3 @@ module Tapsoob
     end
   end
 end
-
-# Backward compatibility alias
-MultiProgressBar = Tapsoob::Progress::MultiBar

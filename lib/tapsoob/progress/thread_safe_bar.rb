@@ -85,6 +85,3 @@ module Tapsoob
     end
   end
 end
-
-# Backward compatibility alias
-ThreadSafeProgressBar = Tapsoob::Progress::ThreadSafeBar
