@@ -1,6 +1,7 @@
 # -*- encoding : utf-8 -*-
 require 'sequel'
 require 'thread'
+require 'etc'
 
 require 'tapsoob/data_stream'
 require 'tapsoob/log'
@@ -139,6 +140,42 @@ module Tapsoob
       @parallel_workers ||= [opts[:parallel].to_i, 1].max
     end
 
+    # Auto-detect number of workers for intra-table parallelization
+    def table_parallel_workers(table_name, row_count)
+      # Disable intra-table parallelization when piping to STDOUT
+      # (no dump_path means we're outputting JSON directly, which can't be safely parallelized)
+      return 1 if dump_path.nil?
+
+      # TEMPORARILY RE-ENABLED for debugging
+      # return 1 if self.is_a?(Tapsoob::Push)
+
+      # Minimum threshold for parallelization (100K rows by default)
+      threshold = 100_000
+      return 1 if row_count < threshold
+
+      # Detect available CPU cores
+      available_cpus = Etc.nprocessors rescue 4
+
+      # Use up to 50% of CPUs for single table, max 8 workers
+      max_workers = [available_cpus / 2, 8, 2].max
+
+      # Scale based on table size
+      if row_count >= 5_000_000
+        max_workers
+      elsif row_count >= 1_000_000
+        [max_workers / 2, 2].max
+      elsif row_count >= 500_000
+        [max_workers / 4, 2].max
+      else
+        2  # Minimum 2 workers for tables over threshold
+      end
+    end
+
+    # Check if table can use efficient PK-based partitioning
+    def can_use_pk_partitioning?(table_name)
+      Tapsoob::Utils.single_integer_primary_key(db, table_name.to_sym)
+    end
+
     def completed_tables_mutex
       @completed_tables_mutex ||= Mutex.new
     end
@@ -151,6 +188,24 @@ module Tapsoob
 
     def format_number(num)
       num.to_s.gsub(/(\d)(?=(\d\d\d)+(?!\d))/, "\\1,")
+    end
+
+    def save_table_order(table_names)
+      return unless dump_path
+
+      metadata_file = File.join(dump_path, "table_order.txt")
+      File.open(metadata_file, 'w') do |file|
+        table_names.each { |table| file.puts(table) }
+      end
+    end
+
+    def load_table_order
+      return nil unless dump_path
+
+      metadata_file = File.join(dump_path, "table_order.txt")
+      return nil unless File.exist?(metadata_file)
+
+      File.readlines(metadata_file).map(&:strip).reject(&:empty?)
     end
 
     def catch_errors(&blk)
@@ -210,6 +265,9 @@ module Tapsoob
         progress.inc(1)
       end
       progress.finish
+
+      # Save table order for dependency-aware schema loading during push
+      save_table_order(tables.keys) if dump_path
     end
 
     def pull_data
@@ -226,20 +284,32 @@ module Tapsoob
 
     def pull_data_serial
       tables.each do |table_name, count|
-        stream   = Tapsoob::DataStream.factory(db, {
-          :chunksize  => default_chunksize,
-          :table_name => table_name
-        }, { :debug => opts[:debug] })
-        estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
-        progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
-        pull_data_from_table(stream, progress)
+        # Auto-detect if we should use intra-table parallelization
+        table_workers = table_parallel_workers(table_name, count)
+
+        if table_workers > 1
+          log.info "Table #{table_name}: using #{table_workers} workers for #{format_number(count)} records"
+          pull_data_from_table_parallel(table_name, count, table_workers)
+        else
+          stream = Tapsoob::DataStream.factory(db, {
+            :chunksize  => default_chunksize,
+            :table_name => table_name
+          }, { :debug => opts[:debug] })
+          estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
+          progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
+          pull_data_from_table(stream, progress)
+        end
       end
     end
 
     def pull_data_parallel
-      log.info "Using #{parallel_workers} parallel workers"
+      log.info "Using #{parallel_workers} parallel workers for table-level parallelization"
 
-      multi_progress = opts[:progress] ? MultiProgressBar.new(parallel_workers) : nil
+      # Reserve space for both table-level and intra-table workers
+      # With 4 table workers and potentially 8 intra-table workers per table,
+      # we could have many concurrent progress bars. Show up to 8 at once.
+      max_visible_bars = 8
+      multi_progress = opts[:progress] ? MultiProgressBar.new(max_visible_bars) : nil
       table_queue = Queue.new
       tables.each { |table_name, count| table_queue << [table_name, count] }
 
@@ -250,16 +320,32 @@ module Tapsoob
 
             table_name, count = table_queue.pop(true) rescue break
 
-            # Each thread gets its own connection from the pool
-            stream = Tapsoob::DataStream.factory(db, {
-              :chunksize  => default_chunksize,
-              :table_name => table_name
-            }, { :debug => opts[:debug] })
+            # Check if this table should use intra-table parallelization
+            table_workers = table_parallel_workers(table_name, count)
 
-            estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
-            progress = multi_progress ? multi_progress.create_bar(table_name.to_s, estimated_chunks) : nil
+            if table_workers > 1
+              # Large table - use intra-table parallelization
+              info_msg = "Table #{table_name}: using #{table_workers} workers for #{format_number(count)} records"
+              if multi_progress
+                multi_progress.set_info(info_msg)
+              else
+                log.info info_msg
+              end
 
-            pull_data_from_table(stream, progress)
+              # Run intra-table parallelization, passing parent progress bar
+              pull_data_from_table_parallel(table_name, count, table_workers, multi_progress)
+            else
+              # Small table - use single-threaded processing
+              stream = Tapsoob::DataStream.factory(db, {
+                :chunksize  => default_chunksize,
+                :table_name => table_name
+              }, { :debug => opts[:debug] })
+
+              estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
+              progress = multi_progress ? multi_progress.create_bar(table_name.to_s, estimated_chunks) : nil
+
+              pull_data_from_table(stream, progress)
+            end
           end
         end
       end
@@ -343,6 +429,101 @@ module Tapsoob
       self.stream_state = {}
     end
 
+    def pull_data_from_table_parallel(table_name, row_count, num_workers, parent_progress = nil)
+      # Mutex for coordinating file writes
+      write_mutex = Mutex.new
+
+      # Determine partitioning strategy
+      use_pk_partitioning = can_use_pk_partitioning?(table_name)
+
+      if use_pk_partitioning
+        # PK-based partitioning for efficient range queries
+        ranges = Tapsoob::DataStreamKeyed.calculate_pk_ranges(db, table_name, num_workers)
+        log.debug "Table #{table_name}: using PK-based partitioning with #{ranges.size} ranges"
+      else
+        # Interleaved chunking for tables without integer PK
+        log.debug "Table #{table_name}: using interleaved chunking with #{num_workers} workers"
+      end
+
+      # Progress tracking - create ONE shared progress bar for the entire table
+      estimated_chunks = [(row_count.to_f / default_chunksize).ceil, 1].max
+      shared_progress = parent_progress ? parent_progress.create_bar(table_name.to_s, estimated_chunks) : nil
+
+      workers = (0...num_workers).map do |worker_id|
+        Thread.new do
+          # Create worker-specific stream
+          if use_pk_partitioning
+            min_pk, max_pk = ranges[worker_id]
+            stream = Tapsoob::DataStreamKeyedPartition.new(db, {
+              :table_name => table_name,
+              :chunksize => default_chunksize,
+              :partition_range => [min_pk, max_pk]
+            }, { :debug => opts[:debug] })
+          else
+            stream = Tapsoob::DataStreamInterleaved.new(db, {
+              :table_name => table_name,
+              :chunksize => default_chunksize,
+              :worker_id => worker_id,
+              :num_workers => num_workers
+            }, { :debug => opts[:debug] })
+          end
+
+          # Process data chunks
+          loop do
+            break if exiting? || stream.complete?
+
+            begin
+              encoded_data, row_size, elapsed_time = stream.fetch
+
+              # Skip processing empty results
+              if row_size.positive?
+                data = {
+                  :state => stream.to_hash,
+                  :checksum => Tapsoob::Utils.checksum(encoded_data).to_s,
+                  :encoded_data => encoded_data
+                }
+
+                stream.fetch_data_from_database(data) do |rows|
+                  next if rows == {}
+
+                  # Thread-safe file write
+                  write_mutex.synchronize do
+                    if dump_path.nil?
+                      puts JSON.generate(rows)
+                    else
+                      Tapsoob::Utils.export_rows(dump_path, stream.table_name, rows)
+                    end
+                  end
+
+                  # Update shared progress bar (thread-safe)
+                  shared_progress.inc(1) if shared_progress
+                end
+              end
+
+              # Check completion AFTER processing data to avoid losing the last chunk
+              break if stream.complete?
+
+            rescue Tapsoob::CorruptedData => e
+              log.info "Worker #{worker_id}: Corrupted Data Received #{e.message}, retrying..."
+              next
+            rescue StandardError => e
+              log.error "Worker #{worker_id} error: #{e.message}"
+              log.error e.backtrace.join("\n")
+              raise
+            end
+          end
+        end
+      end
+
+      # Wait for all workers to complete
+      workers.each(&:join)
+
+      # Finish the shared progress bar
+      shared_progress.finish if shared_progress
+
+      add_completed_table(table_name)
+    end
+
     def tables
       h = {}
       tables_info.each do |table_name, count|
@@ -418,6 +599,14 @@ module Tapsoob
   class Push < Operation
     def file_prefix
       "push"
+    end
+
+    # Disable table-level parallelization for push operations to respect
+    # foreign key dependencies. Tables must be loaded in dependency order
+    # (as specified in table_order.txt manifest) to avoid FK violations.
+    # Intra-table parallelization is still enabled and safe.
+    def parallel?
+      false
     end
 
     def to_hash
@@ -510,30 +699,51 @@ module Tapsoob
     end
 
     def push_data_serial
+      max_visible_bars = 8
+      multi_progress = opts[:progress] ? MultiProgressBar.new(max_visible_bars) : nil
+
       tables.each do |table_name, count|
         # Skip if data file doesn't exist or has no data
         data_file = File.join(dump_path, "data", "#{table_name}.json")
         next unless File.exist?(data_file) && count > 0
-        db[table_name.to_sym].truncate if @opts[:purge]
-        stream = Tapsoob::DataStream.factory(db, {
-          :table_name => table_name,
-          :chunksize => default_chunksize
-        }, {
-          :"skip-duplicates" => opts[:"skip-duplicates"] || false,
-          :"discard-identity" => opts[:"discard-identity"] || false,
-          :purge => opts[:purge] || false,
-          :debug => opts[:debug]
-        })
-        estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
-        progress = (opts[:progress] ? ProgressBar.new(table_name.to_s, estimated_chunks) : nil)
-        push_data_from_file(stream, progress)
+
+        # Check if this table should use intra-table parallelization
+        table_workers = table_parallel_workers(table_name, count)
+
+        if table_workers > 1
+          info_msg = "Table #{table_name}: using #{table_workers} workers for #{format_number(count)} records"
+          multi_progress.set_info(info_msg) if multi_progress
+          push_data_from_file_parallel(table_name, count, table_workers, multi_progress)
+        else
+          # Show info message for single-worker table
+          info_msg = "Loading #{table_name}: #{format_number(count)} records"
+          multi_progress.set_info(info_msg) if multi_progress
+
+          db[table_name.to_sym].truncate if @opts[:purge]
+          stream = Tapsoob::DataStream.factory(db, {
+            :table_name => table_name,
+            :chunksize => default_chunksize
+          }, {
+            :"skip-duplicates" => opts[:"skip-duplicates"] || false,
+            :"discard-identity" => opts[:"discard-identity"] || false,
+            :purge => opts[:purge] || false,
+            :debug => opts[:debug]
+          })
+          estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
+          progress = multi_progress ? multi_progress.create_bar(table_name.to_s, estimated_chunks) : nil
+          push_data_from_file(stream, progress)
+        end
       end
+
+      multi_progress.stop if multi_progress
     end
 
     def push_data_parallel
-      log.info "Using #{parallel_workers} parallel workers"
+      log.info "Using #{parallel_workers} parallel workers for table-level parallelization"
 
-      multi_progress = opts[:progress] ? MultiProgressBar.new(parallel_workers) : nil
+      # Reserve space for both table-level and intra-table workers
+      max_visible_bars = 8
+      multi_progress = opts[:progress] ? MultiProgressBar.new(max_visible_bars) : nil
       table_queue = Queue.new
 
       tables.each do |table_name, count|
@@ -549,22 +759,38 @@ module Tapsoob
 
             table_name, count = table_queue.pop(true) rescue break
 
-            # Each thread gets its own connection from the pool
-            db[table_name.to_sym].truncate if @opts[:purge]
-            stream = Tapsoob::DataStream.factory(db, {
-              :table_name => table_name,
-              :chunksize => default_chunksize
-            }, {
-              :"skip-duplicates" => opts[:"skip-duplicates"] || false,
-              :"discard-identity" => opts[:"discard-identity"] || false,
-              :purge => opts[:purge] || false,
-              :debug => opts[:debug]
-            })
+            # Check if this table should use intra-table parallelization
+            table_workers = table_parallel_workers(table_name, count)
 
-            estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
-            progress = multi_progress ? multi_progress.create_bar(table_name.to_s, estimated_chunks) : nil
+            if table_workers > 1
+              # Large table - use intra-table parallelization
+              info_msg = "Table #{table_name}: using #{table_workers} workers for #{format_number(count)} records"
+              if multi_progress
+                multi_progress.set_info(info_msg)
+              else
+                log.info info_msg
+              end
 
-            push_data_from_file(stream, progress)
+              # Run intra-table parallelization, passing parent progress bar
+              push_data_from_file_parallel(table_name, count, table_workers, multi_progress)
+            else
+              # Small table - use single-threaded processing
+              db[table_name.to_sym].truncate if @opts[:purge]
+              stream = Tapsoob::DataStream.factory(db, {
+                :table_name => table_name,
+                :chunksize => default_chunksize
+              }, {
+                :"skip-duplicates" => opts[:"skip-duplicates"] || false,
+                :"discard-identity" => opts[:"discard-identity"] || false,
+                :purge => opts[:purge] || false,
+                :debug => opts[:debug]
+              })
+
+              estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
+              progress = multi_progress ? multi_progress.create_bar(table_name.to_s, estimated_chunks) : nil
+
+              push_data_from_file(stream, progress)
+            end
           end
         end
       end
@@ -649,8 +875,23 @@ module Tapsoob
 
     def fetch_local_tables_info
       tables_with_counts = {}
-      tbls = Dir.glob(File.join(dump_path, "schemas", "*")).map { |path| File.basename(path, ".rb") }
-      tbls.each do |table|
+
+      # Try to load table order from metadata file (preserves dependency order)
+      ordered_tables = load_table_order
+
+      if ordered_tables
+        # Use the saved dependency order
+        table_names = ordered_tables
+      else
+        # Fallback: read from schema files (alphabetical order - may have issues with dependencies)
+        table_names = Dir.glob(File.join(dump_path, "schemas", "*"))
+          .map { |path| File.basename(path, ".rb") }
+          .reject { |name| name == "table_order" }  # Exclude metadata file
+          .sort
+      end
+
+      # Count rows for each table
+      table_names.each do |table|
         if File.exist?(File.join(dump_path, "data", "#{table}.json"))
           # Read NDJSON format - each line is a separate JSON chunk
           total_rows = 0
@@ -663,7 +904,105 @@ module Tapsoob
           tables_with_counts[table] = 0
         end
       end
+
       apply_table_filter(tables_with_counts)
+    end
+
+    # Calculate line ranges for file partitioning
+    def calculate_file_line_ranges(table_name, num_workers)
+      file_path = File.join(dump_path, "data", "#{table_name}.json")
+      return [] unless File.exist?(file_path)
+
+      total_lines = File.foreach(file_path).count
+      return [[0, total_lines - 1]] if total_lines == 0 || num_workers <= 1
+
+      lines_per_worker = (total_lines.to_f / num_workers).ceil
+
+      ranges = []
+      (0...num_workers).each do |i|
+        start_line = i * lines_per_worker
+        end_line = [((i + 1) * lines_per_worker) - 1, total_lines - 1].min
+        ranges << [start_line, end_line] if start_line < total_lines
+      end
+
+      ranges
+    end
+
+    # Parallel push for a single large table using file partitioning
+    def push_data_from_file_parallel(table_name, count, num_workers, parent_progress = nil)
+      # Calculate line ranges for each worker
+      ranges = calculate_file_line_ranges(table_name, num_workers)
+      return if ranges.empty?
+
+      # Truncate table if purge is enabled
+      db[table_name.to_sym].truncate if @opts[:purge]
+
+      # Create single shared progress bar for the table
+      estimated_chunks = [(count.to_f / default_chunksize).ceil, 1].max
+      shared_progress = parent_progress ? parent_progress.create_bar(table_name.to_s, estimated_chunks) : nil
+
+      # Mutex for coordinating database writes
+      write_mutex = Mutex.new
+
+      workers = (0...num_workers).map do |worker_id|
+        Thread.new do
+          start_line, end_line = ranges[worker_id]
+
+          # Create worker-specific stream with line range
+          stream = Tapsoob::DataStreamFilePartition.new(db, {
+            :table_name => table_name,
+            :chunksize => default_chunksize,
+            :line_range => [start_line, end_line]
+          }, {
+            :"skip-duplicates" => opts[:"skip-duplicates"] || false,
+            :"discard-identity" => opts[:"discard-identity"] || false,
+            :purge => opts[:purge] || false,
+            :debug => opts[:debug]
+          })
+
+          # Process chunks from file
+          loop do
+            break if stream.complete?
+
+            begin
+              encoded_data, row_size, elapsed_time = stream.fetch(:type => "file", :source => dump_path)
+
+              if row_size.positive?
+                data = {
+                  :state => stream.to_hash,
+                  :checksum => Tapsoob::Utils.checksum(encoded_data).to_s,
+                  :encoded_data => encoded_data
+                }
+
+                # Thread-safe database write
+                write_mutex.synchronize do
+                  stream.fetch_data_to_database(data)
+                end
+
+                # Update shared progress bar
+                shared_progress.inc(1) if shared_progress
+              end
+
+            rescue Tapsoob::CorruptedData => e
+              log.info "Worker #{worker_id}: Corrupted Data Received #{e.message}, retrying..."
+              next
+            rescue StandardError => e
+              log.error "Worker #{worker_id} error: #{e.message}"
+              log.error e.backtrace.join("\n")
+              raise
+            end
+
+            # Check completion after importing data
+            break if stream.complete?
+          end
+        end
+      end
+
+      # Wait for all workers to complete
+      workers.each(&:join)
+
+      # Finish the shared progress bar
+      shared_progress.finish if shared_progress
     end
   end
 end
