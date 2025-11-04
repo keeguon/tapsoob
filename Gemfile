@@ -34,8 +34,10 @@ end
 # gemspec
 gemspec
 
+gem 'jruby-jars', '~> 9.4.14.0', platform: :jruby
+
 group :development do
-  gem 'warbler', '~> 2.0.5', platform: :jruby, github: "jruby/warbler", require: false
+  gem 'warbler', '~> 2.1.0', platform: :jruby, require: false
 end
 
 group :test do

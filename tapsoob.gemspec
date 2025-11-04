@@ -31,7 +31,7 @@ Gem::Specification.new do |s|
     s.platform = 'java'
 
     s.add_dependency "jdbc-mysql",    "~> 9.1.0.1"
-    s.add_dependency "jdbc-postgres", "~> 42.6.0"
+    s.add_dependency "jdbc-postgres", "~> 42.7.0"
     s.add_dependency "jdbc-sqlite3",  "~> 3.46.1.1"
   end
 end
