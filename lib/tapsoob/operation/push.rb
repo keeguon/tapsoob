@@ -56,7 +56,10 @@ module Tapsoob
         filtered_idxs.each do |table, indexes|
           progress = opts[:progress] ? Tapsoob::Progress::Bar.new("#{table} indexes", indexes.size, STDOUT, max_title_width) : nil
           indexes.each do |idx|
-            Tapsoob::Utils.load_indexes(database_url, idx)
+            # Handle both string format (correct) and array format (from older buggy version)
+            # idx should be a migration string, but may have been incorrectly stored as [string]
+            migration_string = idx.is_a?(Array) ? idx.first : idx
+            Tapsoob::Utils.load_indexes(database_url, migration_string)
             progress.inc(1) if progress
           end
           progress.finish if progress

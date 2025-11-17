@@ -144,9 +144,11 @@ Data : #{data}
 
     def export_indexes(dump_path, table, index_data)
       # Use append-only writes to avoid O(n²) complexity
+      # Each index_data is a migration string that should be stored as NDJSON
       index_file = File.join(dump_path, "indexes", "#{table}.json")
 
       File.open(index_file, 'a') do |file|
+        # Store as NDJSON - each line is a JSON-encoded migration string
         file.write(JSON.generate(index_data) + "\n")
       end
     end
