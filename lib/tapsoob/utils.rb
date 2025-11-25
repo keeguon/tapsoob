@@ -98,8 +98,6 @@ Data : #{data}
     # this is not true for other databases so we must check if the field is
     # actually text and manually convert it back to a string
     def incorrect_blobs(db, table)
-      return [] if (db.url =~ /(mysql|mysql2):\/\//).nil?
-
       columns = []
       db.schema(table).each do |data|
         column, cdata = data
@@ -109,10 +107,23 @@ Data : #{data}
     end
 
     def encode_blobs(row, columns)
-      return row if columns.size == 0
+      # Encode columns known to be blobs
       columns.each do |c|
-        row[c] = base64encode(row[c]) unless row[c].nil?
+        if row[c].is_a?(Sequel::SQL::Blob)
+          row[c] = base64encode(row[c]) unless row[c].nil?
+        elsif !row[c].nil? && row[c].encoding == Encoding::ASCII_8BIT
+          # Handle binary data that might not be wrapped in Sequel::SQL::Blob
+          row[c] = base64encode(row[c])
+        end
+      end unless columns.size == 0
+
+      # Also check all values for Sequel::SQL::Blob objects that might not be in the columns list
+      row.each do |key, value|
+        if value.is_a?(Sequel::SQL::Blob) && !columns.include?(key)
+          row[key] = base64encode(value)
+        end
       end
+
       row
     end
 
