@@ -12,7 +12,7 @@ build-jar:
     - update-ca-certificates
   script:
     - bundle install
-    - bundle exec rake war
+    - bundle exec rake jar
     - mv dist/tapsoob.jar dist/tapsoob-${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}.jar
   artifacts:
     paths:
