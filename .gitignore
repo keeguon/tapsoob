@@ -1,5 +1,4 @@
 # Ignore dev stuffs
-config/
 coverage/
 db/
 dist/

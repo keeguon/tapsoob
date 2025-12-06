@@ -1,0 +1,16 @@
+stages:
+  - build
+
+build-jar:
+  stage: build
+  image: jruby:9.4.14.0
+  tags:
+    - linux
+    - docker
+  script:
+    - bundle install
+    - bundle exec rake war
+  artifacts:
+    paths:
+      - "*.jar"
+    expire_in: 1 week
