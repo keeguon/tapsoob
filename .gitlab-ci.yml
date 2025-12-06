@@ -10,6 +10,8 @@ build-jar:
   before_script:
     - apt-get update && apt-get install -y git ca-certificates
     - update-ca-certificates
+    - mkdir -p config
+    - echo "$WARBLE_CONFIG" > config/warble.rb
   script:
     - bundle install
     - bundle exec rake jar
