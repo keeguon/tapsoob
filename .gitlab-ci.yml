@@ -18,6 +18,6 @@ build-jar:
     - bundle exec rake jar
     - |
       VERSION=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
-      curl --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+      curl --fail --verbose --header "JOB-TOKEN: $CI_JOB_TOKEN" \
            --upload-file dist/tapsoob.jar \
-           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/tapsoob/${VERSION}/tapsoob-${VERSION}.jar"
+           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/tapsoob/${V
