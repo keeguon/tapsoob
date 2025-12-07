@@ -78,27 +78,28 @@ cleanup-packages:
     - docker
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
+    - when: manual
+      allow_failure: true
   script:
     - apk add --no-cache curl jq
     - |
       echo "Fetching packages..."
       PACKAGES=$(curl -s --header "JOB-TOKEN: $CI_JOB_TOKEN" \
-        "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages?per_page=100&sort=desc")
+        "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages?per_page=100")
       
-      # Find commit SHA versions (8 hex chars, not semver tags)
-      # Keep the first one (most recent), delete the rest
-      FIRST_NIGHTLY=true
+      # Get latest nightly (8 hex chars = commit SHA)
+      LATEST_NIGHTLY=$(echo "$PACKAGES" | jq -r '[.[] | select(.version | test("^[0-9a-f]{8}$"))] | sort_by(.created_at) | reverse | .[0].version // empty')
+      echo "Latest nightly to keep: $LATEST_NIGHTLY"
       
+      # Process each package
       echo "$PACKAGES" | jq -r '.[] | "\(.id) \(.version)"' | while read -r ID VERSION; do
-        # Check if version looks like a commit SHA (8 hex characters)
         if echo "$VERSION" | grep -qE '^[0-9a-f]{8}$'; then
-          if [ "$FIRST_NIGHTLY" = true ]; then
+          if [ "$VERSION" = "$LATEST_NIGHTLY" ]; then
             echo "Keeping latest nightly: $VERSION"
-            FIRST_NIGHTLY=false
           else
             echo "Deleting old nightly: $VERSION (ID: $ID)"
             curl -s --request DELETE --header "JOB-TOKEN: $CI_JOB_TOKEN" \
-              ${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages/${ID}"
+              "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages/${ID}"
           fi
         else
           echo "Keeping tagged release: $VERSION"
