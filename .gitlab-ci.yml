@@ -26,7 +26,7 @@ build-jar:
     - bundle install
     - bundle exec rake jar
     - VERSION=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
-    - 'curl --fail --verbose --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file dist/tapsoob.jar "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/tapsoob/${VERSION}/tapsoob-${VERSION}.jar"'
+    - 'curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file dist/tapsoob.jar "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages/generic/tapsoob/${VERSION}/tapsoob-${VERSION}.jar"'
 
 publish-gem:
   stage: publish
@@ -83,7 +83,7 @@ cleanup-packages:
     - |
       echo "Fetching packages..."
       PACKAGES=$(curl -s --header "JOB-TOKEN: $CI_JOB_TOKEN" \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages?per_page=100&sort=desc")
+        "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages?per_page=100&sort=desc")
       
       # Find commit SHA versions (8 hex chars, not semver tags)
       # Keep the first one (most recent), delete the rest
@@ -98,7 +98,7 @@ cleanup-packages:
           else
             echo "Deleting old nightly: $VERSION (ID: $ID)"
             curl -s --request DELETE --header "JOB-TOKEN: $CI_JOB_TOKEN" \
-              "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/${ID}"
+              ${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages/${ID}"
           fi
         else
           echo "Keeping tagged release: $VERSION"
