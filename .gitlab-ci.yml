@@ -1,5 +1,6 @@
 stages:
   - build
+  - publish
 
 build-jar:
   stage: build
@@ -18,3 +19,39 @@ build-jar:
     - bundle exec rake jar
     - VERSION=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
     - 'curl --fail --verbose --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file dist/tapsoob.jar "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/tapsoob/${VERSION}/tapsoob-${VERSION}.jar"'
+
+publish-gem:
+  stage: publish
+  image: ruby:3.3
+  tags:
+    - linux
+    - docker
+  before_script:
+    - apt-get update && apt-get install -y git ca-certificates
+    - update-ca-certificates
+    - mkdir -p ~/.gem
+    - echo -e "---\n:rubygems_api_key: ${RUBYGEMS_API_KEY}" > ~/.gem/credentials
+    - chmod 600 ~/.gem/credentials
+  script:
+    - gem build tapsoob.gemspec
+    - gem push tapsoob-*.gem
+  rules:
+    - if: $CI_COMMIT_TAG
+
+publish-gem-jruby:
+  stage: publish
+  image: jruby:9.4.14.0
+  tags:
+    - linux
+    - docker
+  before_script:
+    - apt-get update && apt-get install -y git ca-certificates
+    - update-ca-certificates
+    - mkdir -p ~/.gem
+    - echo -e "---\n:rubygems_api_key: ${RUBYGEMS_API_KEY}" > ~/.gem/credentials
+    - chmod 600 ~/.gem/credentials
+  script:
+    - gem build tapsoob.gemspec
+    - gem push tapsoob-*.gem
+  rules:
+    - if: $CI_COMMIT_TAG
