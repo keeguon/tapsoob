@@ -30,7 +30,11 @@ publish-gem:
     - apt-get update && apt-get install -y git ca-certificates
     - update-ca-certificates
     - mkdir -p ~/.gem
-    - echo -e "---\n:rubygems_api_key: ${RUBYGEMS_API_KEY}" > ~/.gem/credentials
+    - |
+      cat > ~/.gem/credentials << EOF
+      ---
+      :rubygems_api_key: ${RUBYGEMS_API_KEY}
+      EOF
     - chmod 600 ~/.gem/credentials
   script:
     - gem build tapsoob.gemspec
@@ -48,7 +52,11 @@ publish-gem-jruby:
     - apt-get update && apt-get install -y git ca-certificates
     - update-ca-certificates
     - mkdir -p ~/.gem
-    - echo -e "---\n:rubygems_api_key: ${RUBYGEMS_API_KEY}" > ~/.gem/credentials
+    - |
+      cat > ~/.gem/credentials << EOF
+      ---
+      :rubygems_api_key: ${RUBYGEMS_API_KEY}
+      EOF
     - chmod 600 ~/.gem/credentials
   script:
     - gem build tapsoob.gemspec
