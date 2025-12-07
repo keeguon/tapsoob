@@ -9,8 +9,7 @@ build-jar:
     - linux
     - docker
   before_script:
-    - apt-get update && apt-get install -y git ca-certificates
-    - update-ca-certificates
+    - apt-get update && apt-get install -y git
     - gem install rake
     - mkdir -p config dist
     - echo "$WARBLE_CONFIG" > config/warble.rb
@@ -27,8 +26,7 @@ publish-gem:
     - linux
     - docker
   before_script:
-    - apt-get update && apt-get install -y git ca-certificates
-    - update-ca-certificates
+    - apt-get update && apt-get install -y git
     - mkdir -p ~/.gem
     - |
       cat > ~/.gem/credentials << EOF
@@ -49,8 +47,7 @@ publish-gem-jruby:
     - linux
     - docker
   before_script:
-    - apt-get update && apt-get install -y git ca-certificates
-    - update-ca-certificates
+    - apt-get update && apt-get install -y git
     - mkdir -p ~/.gem
     - |
       cat > ~/.gem/credentials << EOF
