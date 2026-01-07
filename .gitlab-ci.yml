@@ -18,14 +18,43 @@ build-jar:
     - linux
     - docker
   before_script:
-    - apt-get update && apt-get install -y git
+    - apt-get update && apt-get install -y git curl jq
     - gem install rake
     - mkdir -p config dist
     - echo "$WARBLE_CONFIG" > config/warble.rb
   script:
+    - VERSION=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
+    - |
+      # Find all packages with this version
+      echo "Checking for existing packages with version ${VERSION}..."
+      PACKAGES=$(curl -s --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+        "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages?package_name=tapsoob&per_page=100")
+      
+      # Get package IDs matching this version
+      MATCHING_IDS=$(echo "$PACKAGES" | jq -r --arg v "$VERSION" '.[] | select(.version == $v) | .id')
+      COUNT=$(echo "$MATCHING_IDS" | grep -c . || true)
+      
+      echo "Found $COUNT package(s) with version ${VERSION}"
+      
+      if [ "$COUNT" -gt 1 ]; then
+        echo "Multiple packages found, cleaning up duplicates..."
+        # Keep the first one, delete the rest
+        KEEP_ID=$(echo "$MATCHING_IDS" | head -n 1)
+        echo "$MATCHING_IDS" | tail -n +2 | while read -r ID; do
+          echo "Deleting duplicate package ID: $ID"
+          curl -s --request DELETE --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+            "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages/${ID}"
+        done
+        echo "Kept package ID: $KEEP_ID, skipping build"
+        exit 0
+      elif [ "$COUNT" -eq 1 ]; then
+        echo "Package tapsoob-${VERSION}.jar already exists, skipping build"
+        exit 0
+      fi
+      
+      echo "No existing package found, proceeding with build..."
     - bundle install
     - bundle exec rake jar
-    - VERSION=${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}
     - 'curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file dist/tapsoob.jar "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages/generic/tapsoob/${VERSION}/tapsoob-${VERSION}.jar"'
 
 publish-gem:
