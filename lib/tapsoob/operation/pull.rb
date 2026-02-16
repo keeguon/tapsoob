@@ -40,7 +40,7 @@ module Tapsoob
       end
 
       def pull_schema
-        log.info "Receiving schema"
+        log.info "Receiving schema" if opts[:progress]
         Tapsoob::ProgressEvent.schema_start(tables.size)
 
         progress = opts[:progress] ? Tapsoob::Progress::Bar.new('Schema', tables.size) : nil
@@ -60,9 +60,9 @@ module Tapsoob
       end
 
       def pull_data
-        log.info "Receiving data"
+        log.info "Receiving data" if opts[:progress]
 
-        log.info "#{tables.size} tables, #{format_number(record_count)} records"
+        log.info "#{tables.size} tables, #{format_number(record_count)} records" if opts[:progress]
         Tapsoob::ProgressEvent.data_start(tables.size, record_count)
 
         if parallel?
