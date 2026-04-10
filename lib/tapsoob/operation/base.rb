@@ -154,6 +154,9 @@ module Tapsoob
         # (no dump_path means we're outputting JSON directly, which can't be safely parallelized)
         return 1 if dump_path.nil?
 
+        # Disable intra-table parallelization when --no-split is passed
+        return 1 if opts[:no_split]
+
         # TEMPORARILY RE-ENABLED for debugging
         # return 1 if self.is_a?(Tapsoob::Operation::Push)
 

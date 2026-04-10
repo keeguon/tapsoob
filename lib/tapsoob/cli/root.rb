@@ -23,6 +23,7 @@ module Tapsoob
       option :"indexes", type: :boolean, default: false
       option :"same-db", type: :boolean, default: false
       option :parallel, desc: "Number of parallel workers for table processing (default: 1)", default: 1, type: :numeric, aliases: "-j"
+      option :"no-split", desc: "Disable automatic intra-table parallelization", default: false, type: :boolean
       option :progress, desc: "Show progress", default: true, type: :boolean
       option :debug, desc: "Enable debug messages", default: false, type: :boolean
       def pull(dump_path, database_url)
@@ -92,6 +93,7 @@ module Tapsoob
           # Pull only options
           opts[:indexes] = options[:"indexes"] if options.key?(:"indexes")
           opts[:same_db] = options[:"same-db"] if options.key?(:"same-db")
+          opts[:no_split] = options[:"no-split"] if options.key?(:"no-split")
 
           # Push only options
           opts[:purge] = options[:purge] if options.key?(:purge)
