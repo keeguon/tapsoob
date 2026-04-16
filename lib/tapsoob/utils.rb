@@ -111,7 +111,7 @@ Data : #{data}
       columns.each do |c|
         if row[c].is_a?(Sequel::SQL::Blob)
           row[c] = base64encode(row[c]) unless row[c].nil?
-        elsif !row[c].nil? && row[c].encoding == Encoding::ASCII_8BIT
+        elsif !row[c].nil? && row[c].respond_to?(:encoding) && row[c].encoding == Encoding::ASCII_8BIT
           # Handle binary data that might not be wrapped in Sequel::SQL::Blob
           row[c] = base64encode(row[c])
         end

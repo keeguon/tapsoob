@@ -253,7 +253,7 @@ module Tapsoob
           blob_indices = rows[:types].each_index.select { |idx| rows[:types][idx] == "blob" }
           data.each_index do |idx|
             blob_indices.each do |bi|
-              data[idx][bi] = Sequel::SQL::Blob.new(Tapsoob::Utils.base64decode(data[idx][bi])) unless data[idx][bi].nil?
+              data[idx][bi] = Sequel::SQL::Blob.new(Tapsoob::Utils.base64decode(data[idx][bi])) unless data[idx][bi].nil? || !data[idx][bi].respond_to?(:unpack)
             end
           end
         end
