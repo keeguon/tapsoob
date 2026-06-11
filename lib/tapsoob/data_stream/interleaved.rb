@@ -73,6 +73,7 @@ module Tapsoob
       end
 
       def complete?
+        state[:size] ||= table.count
         state[:offset] >= state[:size]
       end
     end
