@@ -126,8 +126,14 @@ module Tapsoob
         opts[:stream_state] = val
       end
 
+      def max_intra_table_workers
+        available_cpus = Etc.nprocessors rescue 4
+        [available_cpus / 2, 8, 2].max
+      end
+
       def db
-        @db ||= Sequel.connect(database_url, max_connections: parallel_workers * 2)
+        pool_size = parallel_workers * max_intra_table_workers + 2
+        @db ||= Sequel.connect(database_url, max_connections: pool_size)
         @db.extension :schema_dumper
         @db.loggers << Tapsoob.log if opts[:debug]
 
