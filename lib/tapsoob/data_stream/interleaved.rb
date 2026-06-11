@@ -17,23 +17,26 @@ module Tapsoob
         }.merge(@state)
       end
 
-      def fetch_rows
+      def next_offset
         worker_id = state[:worker_id]
         num_workers = state[:num_workers]
         chunk_number = state[:chunk_number]
         chunksize = state[:chunksize]
+        global_chunk_index = (chunk_number * num_workers) + worker_id
+        global_chunk_index * chunksize
+      end
 
-        # Only count once on first fetch
+      def fetch_rows
+        worker_id = state[:worker_id]
+        num_workers = state[:num_workers]
+        chunksize = state[:chunksize]
+
         state[:size] ||= table.count
 
-        # Calculate which global chunk this worker should fetch
-        # Worker 0: chunks 0, num_workers, 2*num_workers, ...
-        # Worker 1: chunks 1, num_workers+1, 2*num_workers+1, ...
-        global_chunk_index = (chunk_number * num_workers) + worker_id
-        offset = global_chunk_index * chunksize
+        offset = next_offset
 
         ds = table.order(*order_by).limit(chunksize, offset)
-        log.debug "DataStream::Interleaved#fetch_rows SQL -> #{ds.sql} (worker #{worker_id}/#{num_workers}, chunk #{chunk_number})"
+        log.debug "DataStream::Interleaved#fetch_rows SQL -> #{ds.sql} (worker #{worker_id}/#{num_workers}, chunk #{state[:chunk_number]})"
 
         rows = Tapsoob::Utils.format_data(db, ds.all,
           :string_columns => string_columns,
@@ -74,7 +77,7 @@ module Tapsoob
 
       def complete?
         state[:size] ||= table.count
-        state[:offset] >= state[:size]
+        state[:offset] >= state[:size] || next_offset >= state[:size]
       end
     end
   end
