@@ -7,9 +7,144 @@ default:
       - script_failure
 
 stages:
+  - test
   - build
   - publish
   - cleanup
+
+# ── shared test base ──────────────────────────────────────────────────────────
+
+.test_base:
+  stage: test
+  tags:
+    - linux
+    - docker
+  variables:
+    INTEGRATION_TESTS: "1"
+    SYSTEM_TESTS: "1"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git
+    - bundle install --quiet
+  artifacts:
+    when: always
+    reports:
+      junit: rspec.xml
+    paths:
+      - coverage/
+    expire_in: 7 days
+
+# ── SQLite (no service container needed) ─────────────────────────────────────
+
+test-sqlite:
+  extends: .test_base
+  image: ruby:3.3
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git libsqlite3-dev
+    - bundle install --quiet
+  variables:
+    SRC_DATABASE_URL: "sqlite://tmp/tapsoob_src.db"
+    DST_DATABASE_URL: "sqlite://tmp/tapsoob_dst.db"
+    INTEGRATION_TESTS: "1"
+    SYSTEM_TESTS: "1"
+  script:
+    - mkdir -p tmp
+    - bundle exec rspec spec/unit spec/integration/sqlite_spec.rb spec/system/
+        --format progress
+        --format RspecJunitFormatter --out rspec.xml
+
+# ── MySQL ─────────────────────────────────────────────────────────────────────
+
+test-mysql:
+  extends: .test_base
+  image: ruby:3.3
+  services:
+    - name: mysql:8.4
+      alias: mysql
+      variables:
+        MYSQL_ROOT_PASSWORD: root
+        MYSQL_DATABASE: mysql
+  variables:
+    MYSQL_HOST: mysql
+    MYSQL_PORT: "3306"
+    MYSQL_USER: root
+    MYSQL_PASSWORD: root
+    SRC_DATABASE_URL: "mysql2://root:root@mysql/tapsoob_src"
+    DST_DATABASE_URL: "mysql2://root:root@mysql/tapsoob_dst"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git default-libmysqlclient-dev
+    - bundle install --quiet
+    # Wait for MySQL to be ready
+    - |
+      for i in $(seq 1 30); do
+        mysql -h mysql -u root -proot -e "SELECT 1" 2>/dev/null && break
+        echo "Waiting for MySQL ($i/30)..."
+        sleep 2
+      done
+    - mysql -h mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS tapsoob_src"
+    - mysql -h mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS tapsoob_dst"
+  script:
+    - bundle exec rspec spec/unit spec/integration/mysql_spec.rb
+        --format progress
+        --format RspecJunitFormatter --out rspec.xml
+
+# ── PostgreSQL ────────────────────────────────────────────────────────────────
+
+test-postgres:
+  extends: .test_base
+  image: ruby:3.3
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+      variables:
+        POSTGRES_PASSWORD: postgres
+        POSTGRES_DB: postgres
+  variables:
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    SRC_DATABASE_URL: "postgres://postgres:postgres@postgres/tapsoob_src"
+    DST_DATABASE_URL: "postgres://postgres:postgres@postgres/tapsoob_dst"
+    PGPASSWORD: postgres
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git libpq-dev postgresql-client
+    - bundle install --quiet
+    # Wait for Postgres to be ready
+    - |
+      for i in $(seq 1 30); do
+        pg_isready -h postgres -U postgres 2>/dev/null && break
+        echo "Waiting for PostgreSQL ($i/30)..."
+        sleep 2
+      done
+    - psql -h postgres -U postgres -c "CREATE DATABASE tapsoob_src" || true
+    - psql -h postgres -U postgres -c "CREATE DATABASE tapsoob_dst" || true
+  script:
+    - bundle exec rspec spec/unit spec/integration/postgres_spec.rb
+        --format progress
+        --format RspecJunitFormatter --out rspec.xml
+
+# ── JRuby unit tests (no DB adapters, just unit layer) ───────────────────────
+
+test-jruby:
+  stage: test
+  image: jruby:9.4.14.0
+  tags:
+    - linux
+    - docker
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq git libsqlite3-dev
+    - bundle install --quiet
+  script:
+    - bundle exec rspec spec/unit/
+        --format progress
+        --format RspecJunitFormatter --out rspec.xml
+  artifacts:
+    when: always
+    reports:
+      junit: rspec.xml
+    expire_in: 7 days
+
+# ── build ─────────────────────────────────────────────────────────────────────
 
 build-jar:
   stage: build
@@ -29,13 +164,13 @@ build-jar:
       echo "Checking for existing packages with version ${VERSION}..."
       PACKAGES=$(curl -s --header "JOB-TOKEN: $CI_JOB_TOKEN" \
         "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages?package_name=tapsoob&per_page=100")
-      
+
       # Get package IDs matching this version
       MATCHING_IDS=$(echo "$PACKAGES" | jq -r --arg v "$VERSION" '.[] | select(.version == $v) | .id')
       COUNT=$(echo "$MATCHING_IDS" | grep -c . || true)
-      
+
       echo "Found $COUNT package(s) with version ${VERSION}"
-      
+
       if [ "$COUNT" -gt 1 ]; then
         echo "Multiple packages found, cleaning up duplicates..."
         # Keep the first one, delete the rest
@@ -51,11 +186,13 @@ build-jar:
         echo "Package tapsoob-${VERSION}.jar already exists, skipping build"
         exit 0
       fi
-      
+
       echo "No existing package found, proceeding with build..."
     - bundle install
     - bundle exec rake jar
     - 'curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file dist/tapsoob.jar "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages/generic/tapsoob/${VERSION}/tapsoob-${VERSION}.jar"'
+
+# ── publish ───────────────────────────────────────────────────────────────────
 
 publish-gem:
   stage: publish
@@ -99,6 +236,8 @@ publish-gem-jruby:
   rules:
     - if: $CI_COMMIT_TAG
 
+# ── cleanup ───────────────────────────────────────────────────────────────────
+
 cleanup-packages:
   stage: cleanup
   image: alpine:latest
@@ -115,11 +254,11 @@ cleanup-packages:
       echo "Fetching packages..."
       PACKAGES=$(curl -s --header "JOB-TOKEN: $CI_JOB_TOKEN" \
         "${GITLAB_INTERNAL_API}/projects/${CI_PROJECT_ID}/packages?per_page=100")
-      
+
       # Get latest nightly (8 hex chars = commit SHA)
       LATEST_NIGHTLY=$(echo "$PACKAGES" | jq -r '[.[] | select(.version | test("^[0-9a-f]{8}$"))] | sort_by(.created_at) | reverse | .[0].version // empty')
       echo "Latest nightly to keep: $LATEST_NIGHTLY"
-      
+
       # Process each package
       echo "$PACKAGES" | jq -r '.[] | "\(.id) \(.version)"' | while read -r ID VERSION; do
         if echo "$VERSION" | grep -qE '^[0-9a-f]{8}$'; then

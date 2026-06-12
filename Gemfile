@@ -41,6 +41,9 @@ group :development do
 end
 
 group :test do
-  gem 'rspec', '~> 3.2.0'
-  gem 'simplecov', '~> 0.9.2'
+  gem 'rspec',                   '~> 3.13'
+  gem 'simplecov',               '~> 0.22'
+  gem 'rspec_junit_formatter',   '~> 0.6'
+  gem 'database_cleaner-sequel', '~> 2.0'
+  gem 'faker',                   '~> 3.4'
 end
