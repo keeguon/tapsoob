@@ -6,24 +6,18 @@ require 'database_cleaner/sequel'
 module DbHelpers
   def self.included(base)
     base.instance_eval do
-      # One connection per adapter, cached for the suite run.
-      let(:src_url) { DbHelpers.adapt_url(ENV.fetch('SRC_DATABASE_URL', 'sqlite://tmp/tapsoob_src_test.db')) }
-      let(:dst_url) { DbHelpers.adapt_url(ENV.fetch('DST_DATABASE_URL', 'sqlite://tmp/tapsoob_dst_test.db')) }
-
-      let(:src_db) { DbHelpers.connect(src_url) }
-      let(:dst_db) { DbHelpers.connect(dst_url) }
-
+      # dump_dir is per-example (let is fine here — it's never used in before/after(:all))
       let(:dump_dir) { Dir.mktmpdir('tapsoob_dump_') }
-
-      after(:each) do
-        FileUtils.rm_rf(dump_dir)
-      end
-
-      after(:all) do
-        DbHelpers.disconnect_all
-      end
+      after(:each) { FileUtils.rm_rf(dump_dir) }
     end
   end
+
+  # Instance-method accessors used by examples and shared examples.
+  # Host specs must assign @src_url / @dst_url / @src_db / @dst_db in before(:all).
+  def src_url; @src_url; end
+  def dst_url; @dst_url; end
+  def src_db;  @src_db;  end
+  def dst_db;  @dst_db;  end
 
   # ── URL normalisation ────────────────────────────────────────────────────────
   #

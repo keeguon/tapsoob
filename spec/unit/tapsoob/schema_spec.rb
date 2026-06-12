@@ -26,11 +26,19 @@ RSpec.describe Tapsoob::Schema do
     end
 
     it 'accepts a URL string' do
-      url = sqlite_memory_url
-      Sequel.connect(url) do |tmp|
+      # sqlite::memory: opens a fresh empty DB on every connect, so dump_table
+      # (which opens its own connection) would see no tables. Use a temp file instead.
+      require 'tmpdir'
+      tmp_path = File.join(Dir.tmpdir, "tapsoob_schema_test_#{Process.pid}.db")
+      url = DbHelpers.adapt_url("sqlite://#{tmp_path}")
+      begin
+        tmp = DbHelpers.connect(url)
         tmp.create_table(:t) { primary_key :id; String :v }
         result = described_class.dump_table(url, :t, {})
         expect(result).to include('Sequel::Migration')
+      ensure
+        DbHelpers.disconnect_all
+        File.delete(tmp_path) rescue nil
       end
     end
   end

@@ -1,10 +1,8 @@
 require 'spec_helper'
 
 # PostgreSQL integration suite.
-# Requires SRC_DATABASE_URL / DST_DATABASE_URL pointing at postgres:// connections,
-# OR set POSTGRES_HOST / POSTGRES_PORT / POSTGRES_USER / POSTGRES_PASSWORD env vars.
-#
-# In CI these are supplied by the postgres service container; locally you can run:
+# In CI: supplied by the postgres service container via POSTGRES_* env vars.
+# Locally:
 #   SRC_DATABASE_URL=postgres://postgres:postgres@127.0.0.1/tapsoob_src \
 #   DST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1/tapsoob_dst \
 #   bundle exec rspec spec/integration/postgres_spec.rb
@@ -23,9 +21,7 @@ end
 
 RSpec.describe 'PostgreSQL round-trip', :integration do
   before(:all) do
-    unless postgres_available?
-      skip 'PostgreSQL not available – set POSTGRES_HOST/USER/PASSWORD or SRC_DATABASE_URL'
-    end
+    skip 'PostgreSQL not available' unless postgres_available?
 
     host     = ENV.fetch('POSTGRES_HOST', 'postgres')
     port     = ENV.fetch('POSTGRES_PORT', '5432')
@@ -38,30 +34,22 @@ RSpec.describe 'PostgreSQL round-trip', :integration do
         db.run("CREATE DATABASE #{dbname}")
       end
     end
-  end
 
-  let(:host)     { ENV.fetch('POSTGRES_HOST', 'postgres') }
-  let(:port)     { ENV.fetch('POSTGRES_PORT', '5432') }
-  let(:user)     { ENV.fetch('POSTGRES_USER', 'postgres') }
-  let(:password) { ENV.fetch('POSTGRES_PASSWORD', 'postgres') }
+    @src_url = DbHelpers.adapt_url(
+      ENV.fetch('SRC_DATABASE_URL', "postgres://#{user}:#{password}@#{host}:#{port}/tapsoob_src"))
+    @dst_url = DbHelpers.adapt_url(
+      ENV.fetch('DST_DATABASE_URL', "postgres://#{user}:#{password}@#{host}:#{port}/tapsoob_dst"))
 
-  let(:src_url) do
-    ENV.fetch('SRC_DATABASE_URL',
-      "postgres://#{user}:#{password}@#{host}:#{port}/tapsoob_src")
-  end
-  let(:dst_url) do
-    ENV.fetch('DST_DATABASE_URL',
-      "postgres://#{user}:#{password}@#{host}:#{port}/tapsoob_dst")
-  end
+    @src_db = DbHelpers.connect(@src_url)
+    @dst_db = DbHelpers.connect(@dst_url)
 
-  before(:all) do
-    Fixtures.create_tables(src_db)
-    Fixtures.seed(src_db)
+    Fixtures.create_tables(@src_db)
+    Fixtures.seed(@src_db)
   end
 
   after(:all) do
-    Fixtures.drop_tables(src_db)
-    Fixtures.drop_tables(dst_db)
+    Fixtures.drop_tables(@src_db)   if @src_db
+    Fixtures.drop_tables(@dst_db)   if @dst_db
     DbHelpers.disconnect_all
   end
 
@@ -69,12 +57,9 @@ RSpec.describe 'PostgreSQL round-trip', :integration do
   include_examples 'a parallel round-trip', workers: 2
   include_examples 'a parallel round-trip', workers: 4
 
-  # ── PostgreSQL-specific edge cases ───────────────────────────────────────────
-
   context 'with sequence reset' do
     it 'sequences are reset after push so inserts work' do
       round_trip(src_url, dst_url, dump_dir)
-      # If sequences were not reset, this insert would fail on PK conflict
       expect {
         dst_db[:users].insert(
           name:       'PostPush User',

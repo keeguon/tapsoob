@@ -1,22 +1,11 @@
 # Shared examples that any adapter-specific integration suite can include.
-# The including example group must set:
-#   let(:src_url)  — Sequel connection URL for the source database
-#   let(:dst_url)  — Sequel connection URL for the destination database
-#   let(:src_db)   — connected Sequel::Database for src
-#   let(:dst_db)   — connected Sequel::Database for dst
-#   let(:dump_dir) — temp directory for the dump
+# The including example group must define before(:all) that sets:
+#   @src_url, @dst_url  — Sequel connection URLs
+#   @src_db, @dst_db    — connected Sequel::Database objects
+# Individual examples access these via the src_url/dst_url/src_db/dst_db helpers
+# defined in DbHelpers (which delegate to the ivars set in before(:all)).
 
 RSpec.shared_examples 'a complete round-trip' do
-  before(:all) do
-    Fixtures.create_tables(src_db)
-    Fixtures.seed(src_db)
-  end
-
-  after(:all) do
-    Fixtures.drop_tables(src_db)
-    Fixtures.drop_tables(dst_db)
-  end
-
   it 'pulls without error' do
     expect { pull(src_url, dump_dir) }.not_to raise_error
   end
@@ -82,16 +71,6 @@ RSpec.shared_examples 'a complete round-trip' do
 end
 
 RSpec.shared_examples 'a parallel round-trip' do |workers:|
-  before(:all) do
-    Fixtures.create_tables(src_db)
-    Fixtures.seed(src_db)
-  end
-
-  after(:all) do
-    Fixtures.drop_tables(src_db)
-    Fixtures.drop_tables(dst_db)
-  end
-
   it "preserves row counts with #{workers} parallel workers" do
     round_trip(src_url, dst_url, dump_dir, parallel: workers)
     expect_same_counts(src_db, dst_db)

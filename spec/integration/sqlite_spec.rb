@@ -1,27 +1,27 @@
 require 'spec_helper'
 
-# SQLite integration suite – runs whenever INTEGRATION_TESTS or SRC_DATABASE_URL
-# are set. Falls back to local tmp files so it works without any CI service containers.
 RSpec.describe 'SQLite round-trip', :integration do
-  # Override the defaults from DbHelpers to always use SQLite files,
-  # adapted to JDBC URLs automatically when running under JRuby.
-  let(:src_url) { DbHelpers.adapt_url('sqlite://tmp/tapsoob_sqlite_src.db') }
-  let(:dst_url) { DbHelpers.adapt_url('sqlite://tmp/tapsoob_sqlite_dst.db') }
-
   before(:all) do
+    @src_url = DbHelpers.adapt_url('sqlite://tmp/tapsoob_sqlite_src.db')
+    @dst_url = DbHelpers.adapt_url('sqlite://tmp/tapsoob_sqlite_dst.db')
+
     FileUtils.mkdir_p('tmp')
-    # Fresh databases each run
     File.delete('tmp/tapsoob_sqlite_src.db') rescue nil
     File.delete('tmp/tapsoob_sqlite_dst.db') rescue nil
 
-    Fixtures.create_tables(src_db)
-    Fixtures.seed(src_db)
+    @src_db = DbHelpers.connect(@src_url)
+    @dst_db = DbHelpers.connect(@dst_url)
+
+    Fixtures.create_tables(@src_db)
+    Fixtures.seed(@src_db)
   end
 
   after(:all) do
-    Fixtures.drop_tables(src_db)
-    Fixtures.drop_tables(dst_db)
+    Fixtures.drop_tables(@src_db)
+    Fixtures.drop_tables(@dst_db)
     DbHelpers.disconnect_all
+    File.delete('tmp/tapsoob_sqlite_src.db') rescue nil
+    File.delete('tmp/tapsoob_sqlite_dst.db') rescue nil
   end
 
   include_examples 'a complete round-trip'
@@ -35,15 +35,14 @@ RSpec.describe 'SQLite round-trip', :integration do
     it 'inserts rows without the id column' do
       pull(src_url, discard_dir)
 
-      # Destination starts empty
-      dst_db.drop_table(:users) rescue nil
+      dst_db.drop_table(:users, if_exists: true)
       dst_db.create_table(:users) do
         primary_key :id
-        String :name, size: 100
-        String :email, size: 255
-        String :locale, size: 10
-        Integer :age
-        Date    :birthday
+        String   :name,       size: 100
+        String   :email,      size: 255
+        String   :locale,     size: 10
+        Integer  :age
+        Date     :birthday
         DateTime :created_at
         DateTime :updated_at
       end
@@ -94,21 +93,22 @@ RSpec.describe 'SQLite round-trip', :integration do
     it 'handles a completely empty table gracefully' do
       empty_src_url = DbHelpers.adapt_url('sqlite://tmp/tapsoob_sqlite_empty.db')
       empty_dst_url = DbHelpers.adapt_url('sqlite://tmp/tapsoob_sqlite_empty_dst.db')
-      empty_db  = DbHelpers.connect(empty_src_url)
-      empty_dst = DbHelpers.connect(empty_dst_url)
+      empty_src_db  = DbHelpers.connect(empty_src_url)
+      empty_dst_db  = DbHelpers.connect(empty_dst_url)
 
-      empty_db.create_table!(:empty_table) do
-        primary_key :id
-        String :name, size: 50
-      end
+      empty_src_db.create_table!(:empty_table) { primary_key :id; String :name, size: 50 }
 
       round_trip(empty_src_url, empty_dst_url, empty_dir)
 
-      expect(empty_dst.table_exists?(:empty_table)).to be true
-      expect(empty_dst[:empty_table].count).to eq(0)
-
+      expect(empty_dst_db.table_exists?(:empty_table)).to be true
+      expect(empty_dst_db[:empty_table].count).to eq(0)
+    ensure
+      DbHelpers.disconnect_all
       File.delete('tmp/tapsoob_sqlite_empty.db')     rescue nil
       File.delete('tmp/tapsoob_sqlite_empty_dst.db') rescue nil
+      # Reconnect suite DBs after disconnect_all
+      @src_db = DbHelpers.connect(@src_url)
+      @dst_db = DbHelpers.connect(@dst_url)
     end
   end
 end

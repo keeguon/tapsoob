@@ -114,8 +114,9 @@ RSpec.describe Tapsoob::DataStream do
 
     it 'fetches all 50 rows without duplicates' do
       all_ids = []
-      until stream.complete?
-        encoded, _, _ = stream.fetch
+      loop do
+        encoded, count, _ = stream.fetch
+        break if count == 0
         data_params = {
           state:        stream.to_hash,
           checksum:     Tapsoob::Utils.checksum(encoded).to_s,
@@ -125,6 +126,7 @@ RSpec.describe Tapsoob::DataStream do
           id_idx = rows[:header].index(:id)
           all_ids.concat(rows[:data].map { |r| r[id_idx] })
         end
+        break if stream.complete?
       end
       expect(all_ids.uniq.size).to eq(50)
       expect(all_ids.size).to eq(50)

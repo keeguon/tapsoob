@@ -55,15 +55,11 @@ module Tapsoob
         return tables if table_filter.empty? && exclude_tables.empty?
 
         if tables.kind_of?(Hash)
-          ntables = {}
-          tables.each do |t, d|
-            if !exclude_tables.include?(t.to_s) && (!table_filter.empty? && table_filter.include?(t.to_s))
-              ntables[t] = d
-            end
-          end
-          ntables
+          tables.reject { |t, _| exclude_tables.include?(t.to_s) }
+                .select  { |t, _| table_filter.empty? || table_filter.include?(t.to_s) }
         else
-          tables.reject { |t| exclude_tables.include?(t.to_s) }.select { |t| table_filter.include?(t.to_s) }
+          tables.reject { |t| exclude_tables.include?(t.to_s) }
+                .select  { |t| table_filter.empty? || table_filter.include?(t.to_s) }
         end
       end
 

@@ -58,17 +58,17 @@ RSpec.describe Tapsoob::Utils do
 
   describe '.format_data' do
     let(:db) do
-      db = connect_sqlite
-      db.create_table(:fmt_test) do
+      d = connect_sqlite
+      d.create_table(:fmt_test) do
         primary_key :id
         String  :name, size: 50
         Integer :score
         File    :payload
       end
-      db.extension :schema_dumper
-      db
+      d
     end
 
+    # Evaluate schema in the same let-chain so it always uses the same db instance.
     let(:schema) { db.schema(:fmt_test) }
 
     after { db.disconnect }
@@ -150,7 +150,12 @@ RSpec.describe Tapsoob::Utils do
     end
 
     it 'decreases chunksize when block returns slow time (> 3s)' do
-      result = described_class.calculate_chunksize(900) { |_c| 4.0 }
+      # time_in_db must be near-zero so the real wall-clock diff drives the decision.
+      # We fake it by setting start/end times directly on the Chunksize object.
+      result = described_class.calculate_chunksize(900) do |c|
+        c.start_time = Time.now - 4.5  # pretend we started 4.5s ago
+        0.0                            # time_in_db ≈ 0 → diff = 4.5 > 3.0 → halve
+      end
       expect(result).to be < 900
     end
 
@@ -209,6 +214,8 @@ RSpec.describe Tapsoob::Utils do
       end
 
       it 'returns all columns for tables without a single integer PK' do
+        # Sequel needs at least one query against the table for #columns to be populated.
+        db[:nopk].first
         result = described_class.order_by(db, :nopk)
         expect(result).to match_array([:x, :y])
       end

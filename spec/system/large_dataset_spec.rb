@@ -1,28 +1,24 @@
 require 'spec_helper'
 
-# System tests exercise the full pull→push cycle under conditions that stress
-# the adaptive chunksize, intra-table parallelization, and blob/text handling.
-# These tests are slower by design. Tag: :system
-#
-# Run locally:
-#   bundle exec rspec spec/system/ --tag system
-
 RSpec.describe 'Large dataset system tests', :system do
-  let(:src_url) { DbHelpers.adapt_url(ENV.fetch('SRC_DATABASE_URL', 'sqlite://tmp/tapsoob_system_src.db')) }
-  let(:dst_url) { DbHelpers.adapt_url(ENV.fetch('DST_DATABASE_URL', 'sqlite://tmp/tapsoob_system_dst.db')) }
-
   before(:all) do
+    @src_url = DbHelpers.adapt_url(ENV.fetch('SRC_DATABASE_URL', 'sqlite://tmp/tapsoob_system_src.db'))
+    @dst_url = DbHelpers.adapt_url(ENV.fetch('DST_DATABASE_URL', 'sqlite://tmp/tapsoob_system_dst.db'))
+
     FileUtils.mkdir_p('tmp')
     File.delete('tmp/tapsoob_system_src.db') rescue nil
     File.delete('tmp/tapsoob_system_dst.db') rescue nil
 
-    Fixtures.create_tables(src_db)
-    Fixtures.seed(src_db)
+    @src_db = DbHelpers.connect(@src_url)
+    @dst_db = DbHelpers.connect(@dst_url)
+
+    Fixtures.create_tables(@src_db)
+    Fixtures.seed(@src_db)
   end
 
   after(:all) do
-    Fixtures.drop_tables(src_db)
-    Fixtures.drop_tables(dst_db)
+    Fixtures.drop_tables(@src_db)
+    Fixtures.drop_tables(@dst_db)
     DbHelpers.disconnect_all
     File.delete('tmp/tapsoob_system_src.db') rescue nil
     File.delete('tmp/tapsoob_system_dst.db') rescue nil
@@ -69,9 +65,7 @@ RSpec.describe 'Large dataset system tests', :system do
 
     it 'handles documents with nil body' do
       round_trip(src_url, dst_url, dump_dir)
-      null_count = dst_db[:documents].where(body: nil).count
-      src_null   = src_db[:documents].where(body: nil).count
-      expect(null_count).to eq(src_null)
+      expect(dst_db[:documents].where(body: nil).count).to eq(src_db[:documents].where(body: nil).count)
     end
   end
 
@@ -83,9 +77,7 @@ RSpec.describe 'Large dataset system tests', :system do
       mismatch_count = 0
       src_db[:attachments].order(:id).each do |src_row|
         dst_row = dst_db[:attachments][id: src_row[:id]]
-        unless dst_row[:payload].to_s.bytes == src_row[:payload].to_s.bytes
-          mismatch_count += 1
-        end
+        mismatch_count += 1 unless dst_row[:payload].to_s.bytes == src_row[:payload].to_s.bytes
       end
       expect(mismatch_count).to eq(0)
     end
@@ -117,9 +109,6 @@ RSpec.describe 'Large dataset system tests', :system do
 
   describe 'events table (no primary key)' do
     it 'uses the Base (non-keyed) stream' do
-      # Indirectly verified: Base is used for tables without integer PK,
-      # Keyed is used otherwise. Since events has no PK, if this transfers
-      # correctly, Base is working.
       round_trip(src_url, dst_url, dump_dir)
       expect(dst_db[:events].count).to eq(src_db[:events].count)
     end
@@ -129,7 +118,6 @@ RSpec.describe 'Large dataset system tests', :system do
 
   describe 'adaptive chunksize under load' do
     it 'completes with chunksize=1 (extreme case)' do
-      # Only run on a subset to keep test time reasonable
       small_src = DbHelpers.adapt_url('sqlite://tmp/tapsoob_small_src.db')
       small_dst = DbHelpers.adapt_url('sqlite://tmp/tapsoob_small_dst.db')
       small_dir = Dir.mktmpdir
@@ -145,7 +133,10 @@ RSpec.describe 'Large dataset system tests', :system do
         FileUtils.rm_rf(small_dir)
         File.delete('tmp/tapsoob_small_src.db') rescue nil
         File.delete('tmp/tapsoob_small_dst.db') rescue nil
+        # Reconnect suite DBs after disconnect_all clears the pool
         DbHelpers.disconnect_all
+        @src_db = DbHelpers.connect(@src_url)
+        @dst_db = DbHelpers.connect(@dst_url)
       end
     end
   end
