@@ -79,13 +79,13 @@ test-mysql:
     - bundle install --quiet
     # Wait for MySQL to be ready (mysqladmin is available from default-mysql-client)
     - |
-      for i in $(seq 1 30); do
-        mysqladmin ping -h mysql -u root -prootpassword --silent 2>/dev/null && break
-        echo "Waiting for MySQL ($i/30)..."
+      for i in $(seq 1 45); do
+        mysqladmin ping -h mysql -u root -prootpassword --ssl-mode=DISABLED --silent 2>/dev/null && break
+        echo "Waiting for MySQL ($i/45)..."
         sleep 2
       done
-    - mysql -h mysql -u root -prootpassword -e "CREATE DATABASE IF NOT EXISTS tapsoob_src"
-    - mysql -h mysql -u root -prootpassword -e "CREATE DATABASE IF NOT EXISTS tapsoob_dst"
+    - mysql -h mysql -u root -prootpassword --ssl-mode=DISABLED -e "CREATE DATABASE IF NOT EXISTS tapsoob_src"
+    - mysql -h mysql -u root -prootpassword --ssl-mode=DISABLED -e "CREATE DATABASE IF NOT EXISTS tapsoob_dst"
   script:
     - bundle exec rspec spec/unit spec/integration/mysql_spec.rb
         --format progress
