@@ -58,26 +58,21 @@ module Tapsoob
             table = JSON.parse(line, symbolize_names: true)
             table_name = table[:table_name]
 
+            conn = Sequel.connect(database_url)
             begin
-              # Truncate table if purge option is enabled
-              if opts[:purge]
-                db(database_url, opts)[table_name.to_sym].truncate
-              end
+              conn[table_name.to_sym].truncate if opts[:purge]
 
-              stream = Tapsoob::DataStream::Base.factory(db(database_url, opts), {
+              stream = Tapsoob::DataStream::Base.factory(conn, {
                 table_name: table_name,
                 chunksize: opts[:default_chunksize]
               }, { :"discard-identity" => opts[:"discard-identity"] || false, :purge => opts[:purge] || false, :debug => opts[:debug] })
 
               stream.import_rows(table)
-            rescue Sequel::DatabaseDisconnectError, Sequel::DatabaseConnectionError => e
-              # Connection dropped (e.g. MySQL wait_timeout); reconnect and retry once
-              STDERR.puts "Connection lost for #{table_name}, reconnecting... (#{e.message.lines.first.chomp})"
-              @db = nil
-              retry
             rescue Exception => e
               Tapsoob.log.debug e.message
-              STDERR.puts "Error loading data in #{table_name} : #{e.message}\n#{e.backtrace.first(5).join("\n")}"
+              STDERR.puts "Error loading data in #{table_name} : #{e.message}"
+            ensure
+              conn.disconnect
             end
           end
         end
