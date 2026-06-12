@@ -37,7 +37,7 @@ RSpec.describe 'SQLite round-trip', :integration do
     after { FileUtils.rm_rf(discard_dir) }
 
     it 'inserts rows without the id column' do
-      pull(src_url, discard_dir)
+      pull(src_url, discard_dir, tables: ['users'])
 
       dst_db.drop_table(:orders, if_exists: true)
       dst_db.drop_table(:users, if_exists: true)

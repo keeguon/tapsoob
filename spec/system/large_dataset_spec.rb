@@ -49,7 +49,7 @@ RSpec.describe 'Large dataset system tests', :system do
     it 'has no duplicate rows after parallel pull' do
       round_trip(src_url, dst_url, dump_dir, parallel: 4)
       total    = dst_db[:large_table].count
-      distinct = dst_db[:large_table].distinct(:id).count
+      distinct = dst_db[:large_table].select(:id).distinct.count
       expect(distinct).to eq(total)
     end
   end
