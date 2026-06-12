@@ -278,7 +278,8 @@ module Tapsoob
           data    = data.map { |d| d[1..-1] }
         end
 
-        table.import(columns, data, :commit_every => 100)
+        batch_size = rows.has_key?(:types) && rows[:types].any? { |t| t =~ /blob|text/i } ? 10 : 100
+        table.import(columns, data, :commit_every => batch_size)
       rescue Exception => ex
         case ex.message
         when /integer out of range/ then
