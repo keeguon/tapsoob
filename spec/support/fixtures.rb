@@ -63,7 +63,11 @@ module Fixtures
       DateTime :published_at
     end
 
-    payload_type = db.database_type == :mysql ? :mediumblob : :blob
+    payload_type = case db.database_type
+                   when :mysql  then :mediumblob
+                   when :postgres then :bytea
+                   else :blob
+                   end
     db.create_table!(:attachments) do
       primary_key :id
       String  :filename,   null: false, size: 255
