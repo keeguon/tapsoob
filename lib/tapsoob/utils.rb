@@ -39,7 +39,7 @@ module Tapsoob
 
     def format_data(db, data, opts = {})
       return {} if data.size == 0
-      string_columns = opts[:string_columns] || []
+      string_columns = opts[:string_columns] || []
       schema = opts[:schema] || []
       table = opts[:table]
 
@@ -213,7 +213,7 @@ Data : #{data}
         pkey.kind_of?(Array) ? pkey : [pkey.to_sym]
       else
         table = table.to_sym unless table.kind_of?(Sequel::SQL::Identifier)
-        db[table].columns
+        db.schema(table).map(&:first)
       end
     end
   end

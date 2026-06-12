@@ -126,7 +126,7 @@ module Fixtures
       {
         name:       Faker::Name.name,
         email:      Faker::Internet.unique.email,
-        locale:     Faker::Locale.to_s.split('_').first,
+        locale:     %w[en fr de es ja pt it nl].sample,
         age:        Faker::Number.between(from: 18, to: 80),
         birthday:   Faker::Date.birthday(min_age: 18, max_age: 80).to_s,
         created_at: now.strftime('%Y-%m-%d %H:%M:%S'),

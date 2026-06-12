@@ -214,8 +214,6 @@ RSpec.describe Tapsoob::Utils do
       end
 
       it 'returns all columns for tables without a single integer PK' do
-        # Sequel needs at least one query against the table for #columns to be populated.
-        db[:nopk].first
         result = described_class.order_by(db, :nopk)
         expect(result).to match_array([:x, :y])
       end
