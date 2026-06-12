@@ -8,7 +8,6 @@ require 'spec_helper'
 #   bundle exec rspec spec/integration/postgres_spec.rb
 
 def postgres_available?
-  return false unless defined?(PG)
   host     = ENV.fetch('POSTGRES_HOST', 'postgres')
   port     = ENV.fetch('POSTGRES_PORT', '5432')
   user     = ENV.fetch('POSTGRES_USER', 'postgres')

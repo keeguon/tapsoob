@@ -8,7 +8,6 @@ require 'spec_helper'
 #   bundle exec rspec spec/integration/mysql_spec.rb
 
 def mysql_available?
-  return false unless defined?(Mysql2)
   host     = ENV.fetch('MYSQL_HOST', 'mysql')
   port     = ENV.fetch('MYSQL_PORT', '3306')
   user     = ENV.fetch('MYSQL_USER', 'root')
