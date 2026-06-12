@@ -60,6 +60,13 @@ module Tapsoob
 
             conn = Sequel.connect(database_url)
             begin
+              if conn.uri =~ /mysql/i
+                conn.run("SET SESSION wait_timeout=28800")
+                conn.run("SET SESSION interactive_timeout=28800")
+                conn.run("SET SESSION net_read_timeout=3600")
+                conn.run("SET SESSION net_write_timeout=3600")
+              end
+
               conn[table_name.to_sym].truncate if opts[:purge]
 
               stream = Tapsoob::DataStream::Base.factory(conn, {
