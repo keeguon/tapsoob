@@ -54,11 +54,12 @@ module Fixtures
       String  :description, text: true
     end
 
+    body_type = db.database_type == :mysql ? :mediumtext : :text
     db.create_table!(:documents) do
       primary_key :id
-      String  :title,      null: false, size: 255
-      String  :body,       text: true
-      String  :author,     size: 100
+      String   :title,      null: false, size: 255
+      column   :body,       body_type
+      String   :author,     size: 100
       DateTime :published_at
     end
 
