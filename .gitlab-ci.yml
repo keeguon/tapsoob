@@ -61,27 +61,31 @@ test-mysql:
     - name: mysql:8.4
       alias: mysql
       variables:
-        MYSQL_ROOT_PASSWORD: root
+        MYSQL_ROOT_PASSWORD: "rootpassword"
         MYSQL_DATABASE: mysql
+        # Prevent job-level MYSQL_USER/MYSQL_PASSWORD from leaking into the
+        # service container — MySQL 8.4 rejects MYSQL_USER=root at startup.
+        MYSQL_USER: ""
+        MYSQL_PASSWORD: ""
   variables:
     MYSQL_HOST: mysql
     MYSQL_PORT: "3306"
     MYSQL_USER: root
-    MYSQL_PASSWORD: root
-    SRC_DATABASE_URL: "mysql2://root:root@mysql/tapsoob_src"
-    DST_DATABASE_URL: "mysql2://root:root@mysql/tapsoob_dst"
+    MYSQL_PASSWORD: rootpassword
+    SRC_DATABASE_URL: "mysql2://root:rootpassword@mysql/tapsoob_src"
+    DST_DATABASE_URL: "mysql2://root:rootpassword@mysql/tapsoob_dst"
   before_script:
-    - apt-get update -qq && apt-get install -y -qq git default-libmysqlclient-dev
+    - apt-get update -qq && apt-get install -y -qq git default-libmysqlclient-dev default-mysql-client
     - bundle install --quiet
-    # Wait for MySQL to be ready
+    # Wait for MySQL to be ready (mysqladmin is available from default-mysql-client)
     - |
       for i in $(seq 1 30); do
-        mysql -h mysql -u root -proot -e "SELECT 1" 2>/dev/null && break
+        mysqladmin ping -h mysql -u root -prootpassword --silent 2>/dev/null && break
         echo "Waiting for MySQL ($i/30)..."
         sleep 2
       done
-    - mysql -h mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS tapsoob_src"
-    - mysql -h mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS tapsoob_dst"
+    - mysql -h mysql -u root -prootpassword -e "CREATE DATABASE IF NOT EXISTS tapsoob_src"
+    - mysql -h mysql -u root -prootpassword -e "CREATE DATABASE IF NOT EXISTS tapsoob_dst"
   script:
     - bundle exec rspec spec/unit spec/integration/mysql_spec.rb
         --format progress
