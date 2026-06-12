@@ -44,9 +44,12 @@ module Tapsoob
         Tapsoob::ProgressEvent.schema_start(tables.size)
 
         progress = opts[:progress] ? Tapsoob::Progress::Bar.new('Schema', tables.size) : nil
+        mysql_db = [:mysql, :mysql2].include?(db.database_type)
         tables.each do |table_name, count|
           # Reuse existing db connection for better performance
-          schema_data = Tapsoob::Schema.dump_table(db, table_name, @opts.slice(:indexes, :same_db))
+          dump_opts = @opts.slice(:indexes, :same_db)
+          dump_opts[:same_db] = true if mysql_db && !dump_opts.key?(:same_db)
+          schema_data = Tapsoob::Schema.dump_table(db, table_name, dump_opts)
           log.debug "Table: #{table_name}\n#{schema_data}\n"
           output = Tapsoob::Utils.export_schema(dump_path, table_name, schema_data)
           puts output if dump_path.nil? && output

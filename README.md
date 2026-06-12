@@ -102,11 +102,6 @@ It defaults to a single thread as per pre 0.6.1, it is also appliable to `tapsoo
 Your exports can be moved from one machine to another for backups or replication, you can also use Tapsoob to switch your RDBMS from one of the supported system to another.
 
 
-## ToDo
-
-* Tests (in progress)
-
-
 ## Contributors
 
 * Félix Bellanger <felix.bellanger@gmail.com>
