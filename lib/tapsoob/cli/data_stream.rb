@@ -54,11 +54,8 @@ module Tapsoob
             STDERR.puts "Warning: Parallel mode not supported when reading from STDIN"
           end
 
-          data = []
-          STDIN.each_line { |line| data << JSON.parse(line, symbolize_names: true) }
-
-          # import data
-          data.each do |table|
+          STDIN.each_line do |line|
+            table = JSON.parse(line, symbolize_names: true)
             table_name = table[:table_name]
 
             # Truncate table if purge option is enabled
