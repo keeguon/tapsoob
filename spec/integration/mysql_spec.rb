@@ -45,6 +45,10 @@ RSpec.describe 'MySQL round-trip', :integration do
     Fixtures.seed(@src_db)
   end
 
+  before(:each) do
+    Fixtures.drop_tables(@dst_db) if @dst_db
+  end
+
   after(:all) do
     Fixtures.drop_tables(@src_db)   if @src_db
     Fixtures.drop_tables(@dst_db)   if @dst_db

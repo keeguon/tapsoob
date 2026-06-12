@@ -16,6 +16,10 @@ RSpec.describe 'Large dataset system tests', :system do
     Fixtures.seed(@src_db)
   end
 
+  before(:each) do
+    Fixtures.drop_tables(@dst_db)
+  end
+
   after(:all) do
     Fixtures.drop_tables(@src_db)
     Fixtures.drop_tables(@dst_db)

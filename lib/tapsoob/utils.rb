@@ -209,7 +209,7 @@ Data : #{data}
 
     def order_by(db, table)
       pkey = primary_key(db, table)
-      if pkey
+      if pkey && !pkey.empty?
         pkey.kind_of?(Array) ? pkey : [pkey.to_sym]
       else
         table = table.to_sym unless table.kind_of?(Sequel::SQL::Identifier)

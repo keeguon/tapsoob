@@ -16,6 +16,10 @@ RSpec.describe 'SQLite round-trip', :integration do
     Fixtures.seed(@src_db)
   end
 
+  before(:each) do
+    Fixtures.drop_tables(@dst_db)
+  end
+
   after(:all) do
     Fixtures.drop_tables(@src_db)
     Fixtures.drop_tables(@dst_db)
@@ -35,6 +39,7 @@ RSpec.describe 'SQLite round-trip', :integration do
     it 'inserts rows without the id column' do
       pull(src_url, discard_dir)
 
+      dst_db.drop_table(:orders, if_exists: true)
       dst_db.drop_table(:users, if_exists: true)
       dst_db.create_table(:users) do
         primary_key :id
