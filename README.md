@@ -13,10 +13,19 @@ Tapsoob currently rely on the Sequel ORM (<http://sequel.rubyforge.org/>) so we 
 
 If you're using either Oracle or Oracle XE you will need some extra requirements. If you're using Ruby you'll need to have your ORACLE_HOME environnement variable set properly and the `ruby-oci8` gem installed. However if you're using jRuby you'll need to have the official Oracle JDBC driver (see here for more informations: <http://www.oracle.com/technetwork/articles/dsl/jruby-oracle11g-330825.html>) and it should be loaded prior to using Tapsoob otherwise you won't be able to connect the database.
 
+## Recent fixes
+
+* Fixed intra-table parallelization where sometimes size/offset where lazily instantiated leading to infinite data dumping.
+* Fixed connection handling when piping to release and reconnect DB when loading to avoid RDBMS closing the connection early (mainly in MySQL/MariaDB).
+
 
 ## Recent changes
 
-### 0.7.0
+### 0.8.x
+
+* Introduced an extensive test suite to consolidate recent changes and fixes.
+
+### 0.7.x
 
 ### Features
 
@@ -107,7 +116,7 @@ Your exports can be moved from one machine to another for backups or replication
 ## License
 
 The MIT License (MIT)
-Copyright © 2015 Félix Bellanger <felix.bellanger@gmail.com>
+Copyright © 2026 Félix Bellanger <felix.bellanger@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 

@@ -63,12 +63,13 @@ module Fixtures
       DateTime :published_at
     end
 
+    payload_type = db.database_type == :mysql ? :mediumblob : :blob
     db.create_table!(:attachments) do
       primary_key :id
       String  :filename,   null: false, size: 255
       String  :mime_type,  size: 100
       Integer :size_bytes
-      File    :payload
+      column  :payload,    payload_type
     end
 
     db.create_table!(:events) do
