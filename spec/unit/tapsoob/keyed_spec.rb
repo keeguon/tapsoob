@@ -1,6 +1,8 @@
 require 'spec_helper'
 require 'tapsoob/data_stream/keyed'
 
+Sequel.extension :core_extensions
+
 RSpec.describe Tapsoob::DataStream::Keyed do
   let(:db) do
     d = connect_sqlite

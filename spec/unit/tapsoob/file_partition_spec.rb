@@ -52,7 +52,8 @@ RSpec.describe Tapsoob::DataStream::FilePartition do
     end
 
     it 'returns true when current_line exceeds end_line' do
-      stream = new_stream(line_range: [0, 2], current_line: 3)
+      stream = new_stream(line_range: [0, 2])
+      stream.state[:current_line] = 3
       expect(stream.complete?).to be true
     end
   end
