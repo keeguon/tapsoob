@@ -279,7 +279,7 @@ RSpec.describe Tapsoob::Operation::Pull do
       5.times { |i| file_db[:users].insert(name: "user_#{i}") }
       3.times { |i| file_db[:widgets].insert(qty: i * 10) }
       begin
-        op = Tapsoob::Operation::Pull.new(db_url, dump_dir, OperationHelpers::UNIT_OPTS)
+        op = Tapsoob::Operation::Pull.new(db_url, dump_dir, OperationHelpers::UNIT_OPTS.dup)
         op.initialize_dump_directory
         op.pull_schema
         expect { op.pull_data_from_table_parallel(:users, 5, 2) }.not_to raise_error
@@ -299,7 +299,7 @@ RSpec.describe Tapsoob::Operation::Pull do
       file_db.create_table(:nopk)  { String :key, size: 50; Integer :val }
       3.times { |i| file_db[:nopk].insert(key: "k#{i}", val: i) }
       begin
-        op = Tapsoob::Operation::Pull.new(db_url, dump_dir, OperationHelpers::UNIT_OPTS)
+        op = Tapsoob::Operation::Pull.new(db_url, dump_dir, OperationHelpers::UNIT_OPTS.dup)
         op.initialize_dump_directory
         op.pull_schema
         expect { op.pull_data_from_table_parallel(:nopk, 3, 2) }.not_to raise_error
