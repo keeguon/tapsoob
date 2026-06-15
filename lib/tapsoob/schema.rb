@@ -11,9 +11,9 @@ module Tapsoob
     extend self
 
     def dump(database_url, options = {})
-      db = Sequel.connect(database_url)
-      db.extension :schema_dumper
-      template = ERB.new <<-END_MIG
+      Sequel.connect(database_url) do |db|
+        db.extension :schema_dumper
+        template = ERB.new <<-END_MIG
 Class.new(Sequel::Migration) do
   def up
   <% db.send(:sort_dumped_tables, db.tables, {}).each do |table| %>
@@ -29,7 +29,8 @@ Class.new(Sequel::Migration) do
 end
 END_MIG
 
-      template.result(binding)
+        template.result(binding)
+      end
     end
 
     def dump_table(database_url_or_db, table, options)
@@ -68,15 +69,17 @@ END_MIG
     end
 
     def foreign_keys(database_url)
-      db = Sequel.connect(database_url)
-      db.extension :schema_dumper
-      db.dump_foreign_key_migration
+      Sequel.connect(database_url) do |db|
+        db.extension :schema_dumper
+        db.dump_foreign_key_migration
+      end
     end
 
     def indexes(database_url)
-      db = Sequel.connect(database_url)
-      db.extension :schema_dumper
-      db.dump_indexes_migration
+      Sequel.connect(database_url) do |db|
+        db.extension :schema_dumper
+        db.dump_indexes_migration
+      end
     end
 
     def indexes_individual(database_url)
@@ -105,6 +108,7 @@ END_MIG
     end
 
     def load(database_url_or_db, schema, options = { drop: false })
+      schema = rewrite_non_integer_primary_keys(schema)
       # Accept either a database URL or an existing connection object
       if database_url_or_db.is_a?(Sequel::Database)
         db = database_url_or_db
@@ -155,6 +159,25 @@ END_MIG
       Sequel.connect(database_url) do |db|
         db.extension :schema_dumper
         eval(indexes).apply(db, :up)
+      end
+    end
+
+    NON_INTEGER_PK_PATTERN = /^(\s*)primary_key\s+(:?\w+),\s*:type=>"([^"]+)"(.*)$/
+    INTEGER_DB_TYPES       = /\A(?:int(?:eger|\d+)?|bigint|smallint|serial|bigserial|smallserial)/i
+
+    # On PG 10+, Sequel's CreateTableGenerator injects `identity: true` into
+    # every primary_key call via serial_primary_key_options. PG rejects IDENTITY
+    # on non-integer types. Rewrite `primary_key :col, :type=>"varchar..."` to
+    # `column :col, "varchar...", primary_key: true, null: false` which bypasses
+    # that code path entirely.
+    def rewrite_non_integer_primary_keys(schema_str)
+      schema_str.gsub(NON_INTEGER_PK_PATTERN) do
+        indent, col, db_type, rest = $1, $2, $3, $4
+        if db_type =~ INTEGER_DB_TYPES
+          "#{indent}primary_key #{col}, :type=>\"#{db_type}\"#{rest}"
+        else
+          "#{indent}column #{col}, \"#{db_type}\", primary_key: true, null: false#{rest}"
+        end
       end
     end
 

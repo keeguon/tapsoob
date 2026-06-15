@@ -105,11 +105,23 @@ RSpec.describe 'PostgreSQL round-trip', :integration do
 
     after(:each) do
       @src_db.run("DROP TABLE IF EXISTS varchar_pk_table")
+      @dst_db.run("DROP TABLE IF EXISTS varchar_pk_table")
     end
 
     it 'skips reset without logging a warning (no sequence attached to varchar PK)' do
       expect(Tapsoob.log).not_to receive(:warn)
       Tapsoob::Schema.reset_db_sequences(@src_url)
+    end
+
+    it 'round-trips the table without identity column errors' do
+      dump_dir = Dir.mktmpdir
+      begin
+        pull(src_url, dump_dir)
+        expect { push(dst_url, dump_dir) }.not_to raise_error
+        expect(dst_db[:varchar_pk_table].where(id: 'abc-123').count).to eq(1)
+      ensure
+        FileUtils.rm_rf(dump_dir)
+      end
     end
   end
 
