@@ -159,17 +159,18 @@ END_MIG
     end
 
     def reset_db_sequences(database_url)
-      db = Sequel.connect(database_url)
-      db.extension :schema_dumper
-      return unless db.respond_to?(:reset_primary_key_sequence)
-      db.tables.each do |table|
-        pk = db.primary_key(table)
-        next unless pk
-        pk_type = db.schema(table).find { |col, _| col.to_s == pk.to_s }&.last&.dig(:db_type)
-        next unless pk_type&.match?(/int|serial/i)
-        db.reset_primary_key_sequence(table)
-      rescue Sequel::DatabaseError => e
-        Tapsoob.log.warn "Could not reset sequence for table '#{table}': #{e.message.lines.first.chomp}"
+      Sequel.connect(database_url) do |db|
+        db.extension :schema_dumper
+        next unless db.respond_to?(:reset_primary_key_sequence)
+        db.tables.each do |table|
+          pk = db.primary_key(table)
+          next unless pk
+          pk_type = db.schema(table).find { |col, _| col.to_s == pk.to_s }&.last&.dig(:db_type)
+          next unless pk_type&.match?(/int|serial/i)
+          db.reset_primary_key_sequence(table)
+        rescue Sequel::DatabaseError => e
+          Tapsoob.log.warn "Could not reset sequence for table '#{table}': #{e.message.lines.first.chomp}"
+        end
       end
     end
   end
