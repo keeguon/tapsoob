@@ -79,6 +79,37 @@ RSpec.describe 'SQLite round-trip', :integration do
     end
   end
 
+  context 'with --drop-tables' do
+    let(:drop_dir) { Dir.mktmpdir }
+    after { FileUtils.rm_rf(drop_dir) }
+
+    it 'succeeds when destination tables already exist' do
+      pull(src_url, drop_dir)
+      push(dst_url, drop_dir)
+
+      # Second push with --drop-tables: tables exist, should drop and recreate
+      expect { push(dst_url, drop_dir, :"drop-tables" => true) }.not_to raise_error
+    end
+
+    it 'preserves row counts after drop and re-push' do
+      pull(src_url, drop_dir)
+      push(dst_url, drop_dir)
+      push(dst_url, drop_dir, :"drop-tables" => true)
+
+      expect_same_counts(src_db, dst_db)
+    end
+
+    it 'does not duplicate rows on re-push' do
+      pull(src_url, drop_dir)
+      push(dst_url, drop_dir)
+      push(dst_url, drop_dir, :"drop-tables" => true)
+
+      src_db.tables.each do |table|
+        expect(dst_db[table].count).to eq(src_db[table].count)
+      end
+    end
+  end
+
   context 'with custom chunksize' do
     let(:chunk_dir) { Dir.mktmpdir }
     after { FileUtils.rm_rf(chunk_dir) }
