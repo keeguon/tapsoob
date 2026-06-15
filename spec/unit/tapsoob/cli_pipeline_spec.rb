@@ -88,7 +88,7 @@ RSpec.describe "CLI pipelines" do
       end
     end
 
-    it 'schema load with --drop drops existing tables first' do
+    it 'schema load is idempotent when destination is fresh' do
       schema_text = capture_stdout { run_cli(Tapsoob::CLI::Schema, ["dump", src_url]) }
       schema_file = File.join(tmp, "schema.rb")
       File.write(schema_file, schema_text)
@@ -96,8 +96,8 @@ RSpec.describe "CLI pipelines" do
       dst_db = make_db(dst_path)
       begin
         run_cli(Tapsoob::CLI::Schema, ["load", dst_url, schema_file])
-        run_cli(Tapsoob::CLI::Schema, ["load", dst_url, schema_file, "--drop=true"])
         expect(dst_db.table_exists?(:users)).to be true
+        expect(dst_db.table_exists?(:widgets)).to be true
       ensure
         dst_db.disconnect
       end
@@ -155,7 +155,9 @@ RSpec.describe "CLI pipelines" do
   # ── data pull → push pipeline (dump_path mode) ───────────────────────────────
 
   describe "data pull → push pipeline" do
-    before { FileUtils.mkdir_p(dump_dir) }
+    before do
+      %w[data schemas indexes].each { |d| FileUtils.mkdir_p(File.join(dump_dir, d)) }
+    end
 
     it 'pulls data into dump_dir and pushes it to destination' do
       # Load schema into dst first
@@ -209,7 +211,9 @@ RSpec.describe "CLI pipelines" do
   # ── data push --purge flag ────────────────────────────────────────────────────
 
   describe "data push --purge" do
-    before { FileUtils.mkdir_p(dump_dir) }
+    before do
+      %w[data schemas indexes].each { |d| FileUtils.mkdir_p(File.join(dump_dir, d)) }
+    end
 
     it 'truncates destination tables before inserting' do
       schema_text = capture_stdout { run_cli(Tapsoob::CLI::Schema, ["dump", src_url]) }

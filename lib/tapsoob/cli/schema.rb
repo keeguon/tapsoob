@@ -29,7 +29,7 @@ module Tapsoob
 
       desc "dump_table DATABASE_URL TABLE", "Dump a table from a database using a database URL"
       def dump_table(database_url, table)
-        puts Tapsoob::Schema.dump_table(database_url, table)
+        puts Tapsoob::Schema.dump_table(database_url, table, {})
       end
 
       desc "foreign_keys DATABASE_URL", "Dump foreign_keys from a database using a database URL"
