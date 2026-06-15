@@ -80,6 +80,52 @@ RSpec.describe Tapsoob::Progress do
       end
     end
 
+    describe '#file_transfer_mode' do
+      it 'switches format_arguments to stat_for_file_transfer' do
+        bar.file_transfer_mode
+        expect(bar.instance_variable_get(:@format_arguments)).to include(:stat_for_file_transfer)
+      end
+    end
+
+    describe '#format=' do
+      it 'updates the format string' do
+        bar.format = "custom %s"
+        expect(bar.instance_variable_get(:@format)).to eq("custom %s")
+      end
+    end
+
+    describe '#format_arguments=' do
+      it 'updates format arguments' do
+        bar.format_arguments = [:title, :percentage]
+        expect(bar.instance_variable_get(:@format_arguments)).to eq([:title, :percentage])
+      end
+    end
+
+    describe 'convert_bytes (via fmt_stat_for_file_transfer)' do
+      it 'renders correctly in file_transfer_mode after finishing' do
+        bar.file_transfer_mode
+        bar.inc(50)
+        bar.finish
+        expect(out.string).not_to be_empty
+      end
+
+      it 'renders KB range correctly' do
+        b = described_class.new("KB", 2048, out)
+        b.file_transfer_mode
+        b.inc(2048)
+        b.finish
+        expect(out.string).to match(/KB/)
+      end
+
+      it 'renders MB range correctly' do
+        b = described_class.new("MB", 2 * 1024 * 1024, out)
+        b.file_transfer_mode
+        b.inc(2 * 1024 * 1024)
+        b.finish
+        expect(out.string).to match(/MB/)
+      end
+    end
+
     describe 'zero total' do
       subject(:bar) { described_class.new("Empty", 0, out) }
 

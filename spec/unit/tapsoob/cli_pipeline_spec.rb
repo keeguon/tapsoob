@@ -237,6 +237,135 @@ RSpec.describe "CLI pipelines" do
     end
   end
 
+  # ── schema indexes_individual ─────────────────────────────────────────────────
+
+  describe "schema indexes_individual" do
+    it 'dumps per-table index JSON without error' do
+      expect {
+        capture_stdout { run_cli(Tapsoob::CLI::Schema, ["indexes_individual", src_url]) }
+      }.not_to raise_error
+    end
+  end
+
+  # ── schema load via STDIN ────────────────────────────────────────────────────
+
+  describe "schema load via STDIN" do
+    it 'reads schema from STDIN when no filename is given' do
+      schema_text = capture_stdout { run_cli(Tapsoob::CLI::Schema, ["dump", src_url]) }
+
+      stub_const("STDIN", StringIO.new(schema_text))
+
+      dst_db = make_db(dst_path)
+      begin
+        run_cli(Tapsoob::CLI::Schema, ["load", dst_url])
+        expect(dst_db.table_exists?(:users)).to be true
+      ensure
+        dst_db.disconnect
+      end
+    end
+  end
+
+  # ── schema load_foreign_keys via STDIN ───────────────────────────────────────
+
+  describe "schema load_foreign_keys via STDIN" do
+    it 'reads foreign keys from STDIN when no filename is given' do
+      fk_text = capture_stdout { run_cli(Tapsoob::CLI::Schema, ["foreign_keys", src_url]) }
+
+      schema_text = capture_stdout { run_cli(Tapsoob::CLI::Schema, ["dump", src_url]) }
+      schema_file = File.join(tmp, "schema.rb")
+      File.write(schema_file, schema_text)
+      run_cli(Tapsoob::CLI::Schema, ["load", dst_url, schema_file])
+
+      stub_const("STDIN", StringIO.new(fk_text))
+      expect { run_cli(Tapsoob::CLI::Schema, ["load_foreign_keys", dst_url]) }.not_to raise_error
+    end
+  end
+
+  # ── schema load_indexes via STDIN ────────────────────────────────────────────
+
+  describe "schema load_indexes via STDIN" do
+    it 'reads indexes from STDIN when no filename is given' do
+      index_text = capture_stdout { run_cli(Tapsoob::CLI::Schema, ["indexes", src_url]) }
+
+      schema_text = capture_stdout { run_cli(Tapsoob::CLI::Schema, ["dump", src_url]) }
+      schema_file = File.join(tmp, "schema.rb")
+      File.write(schema_file, schema_text)
+      run_cli(Tapsoob::CLI::Schema, ["load", dst_url, schema_file])
+
+      stub_const("STDIN", StringIO.new(index_text))
+      expect { run_cli(Tapsoob::CLI::Schema, ["load_indexes", dst_url]) }.not_to raise_error
+    end
+  end
+
+  # ── root pull --resume with missing file (parse_opts error path) ─────────────
+
+  describe "root pull --resume with non-existent file" do
+    it 'raises when the resume file does not exist' do
+      expect {
+        run_cli(Tapsoob::CLI::Root, ["pull", dump_dir, src_url,
+          "--resume=/tmp/nonexistent_tapsoob_#{Process.pid}.dat",
+          "--progress=false"])
+      }.to raise_error(RuntimeError, /Unable to find resume file/)
+    end
+  end
+
+  # ── root pull --config option ─────────────────────────────────────────────────
+
+  describe "root pull --config with a YAML config file" do
+    it 'loads options from a config YAML file' do
+      config_file = File.join(tmp, "tapsoob.yml")
+      File.write(config_file, { "progress" => false }.to_yaml)
+
+      expect {
+        run_cli(Tapsoob::CLI::Root, ["pull", dump_dir, src_url,
+          "--config=#{config_file}", "--progress=false", "--chunksize=1000", "--no-split"])
+      }.not_to raise_error
+    end
+  end
+
+  # ── data push via STDIN ───────────────────────────────────────────────────────
+
+  describe "data push via STDIN" do
+    it 'imports rows from STDIN JSON when no dump_path is given' do
+      # Set up schema in destination first
+      schema_text = capture_stdout { run_cli(Tapsoob::CLI::Schema, ["dump", src_url]) }
+      schema_file = File.join(tmp, "schema.rb")
+      File.write(schema_file, schema_text)
+      run_cli(Tapsoob::CLI::Schema, ["load", dst_url, schema_file])
+
+      # Generate valid NDJSON for the users table
+      ndjson_line = JSON.generate({
+        table_name: "users",
+        header: ["id", "name"],
+        types: ["integer", "string"],
+        data: [[100, "stdin_user"]]
+      })
+
+      fake_stdin = StringIO.new(ndjson_line + "\n")
+      stub_const("STDIN", fake_stdin)
+
+      run_cli(Tapsoob::CLI::DataStream, ["push", dst_url, "--progress=false"])
+
+      dst_db = make_db(dst_path)
+      begin
+        expect(dst_db[:users].where(id: 100).first).not_to be_nil
+      ensure
+        dst_db.disconnect
+      end
+    end
+  end
+
+  # ── data pull --parallel warning ──────────────────────────────────────────────
+
+  describe "data pull parallel-to-STDOUT warning" do
+    it 'falls back to serial (no error) when parallel > 1 and no dump_path' do
+      # The code emits a warning to STDERR and resets parallel to 1, then runs serial pull.
+      expect {
+        capture_stdout { run_cli(Tapsoob::CLI::DataStream, ["pull", src_url, "--parallel=2", "--progress=false"]) }
+      }.not_to raise_error
+    end
+  end
+
   # ── helper ───────────────────────────────────────────────────────────────────
 
   def capture_stdout(&block)
@@ -247,4 +376,5 @@ RSpec.describe "CLI pipelines" do
   ensure
     $stdout = old
   end
+
 end

@@ -83,6 +83,54 @@ RSpec.describe Tapsoob::DataStream do
       end
     end
 
+    describe '#error / #error=' do
+      it 'defaults to false' do
+        expect(stream.error).to be false
+      end
+
+      it 'stores and retrieves error state' do
+        stream.error = true
+        expect(stream.error).to be true
+      end
+    end
+
+    describe '#to_json' do
+      it 'returns a JSON string including the class name' do
+        json = stream.to_json
+        expect(json).to be_a(String)
+        parsed = JSON.parse(json)
+        expect(parsed).to have_key("klass")
+      end
+    end
+
+    describe '#increment' do
+      it 'advances the state offset by the row count' do
+        initial = stream.state[:offset]
+        stream.increment(5)
+        expect(stream.state[:offset]).to eq(initial + 5)
+      end
+    end
+
+    describe '#verify_stream' do
+      it 'sets offset to the current table row count' do
+        stream.verify_stream
+        expect(stream.state[:offset]).to eq(db[:stream_test].count)
+      end
+    end
+
+    describe '#import_rows with extra columns' do
+      it 'drops unknown columns and imports the rest' do
+        rows = {
+          table_name: "stream_test",
+          header: ["id", "label", "value", "ghost_column"],
+          types: ["integer", "string", "integer", "string"],
+          data: [[999, "imported", 42, "extra"]]
+        }
+        expect { stream.import_rows(rows) }.not_to raise_error
+        expect(db[:stream_test].where(id: 999).first).not_to be_nil
+      end
+    end
+
     describe '#parse_encoded_data' do
       it 'raises CorruptedData on checksum mismatch' do
         encoded, _, _ = stream.fetch
