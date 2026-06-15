@@ -155,4 +155,84 @@ RSpec.describe Tapsoob::Operation::Pull do
       expect(op.apply_table_filter({ "users" => 5, "widgets" => 3 })).to eq("users" => 5)
     end
   end
+
+  # ── pull_data (routing) ──────────────────────────────────────────────────────
+
+  describe '#pull_data' do
+    before do
+      op = build_pull(db, dump_dir)
+      op.initialize_dump_directory
+      op.pull_schema
+    end
+
+    it 'runs serial path by default' do
+      op = build_pull(db, dump_dir)
+      op.pull_data
+      expect(File.exist?(File.join(dump_dir, "data", "users.json"))).to be true
+    end
+
+    it 'runs parallel path when parallel > 1' do
+      op = build_pull(db, dump_dir, parallel: 2, no_split: true)
+      op.pull_data
+      expect(File.exist?(File.join(dump_dir, "data", "users.json"))).to be true
+    end
+  end
+
+  # ── pull_reset_sequences ─────────────────────────────────────────────────────
+
+  describe '#pull_reset_sequences' do
+    it 'runs without error on SQLite' do
+      op = build_pull(db, dump_dir)
+      expect { op.pull_reset_sequences }.not_to raise_error
+    end
+  end
+
+  # ── pull_indexes ─────────────────────────────────────────────────────────────
+
+  describe '#pull_indexes' do
+    before do
+      op = build_pull(db, dump_dir)
+      op.initialize_dump_directory
+    end
+
+    it 'writes index files to the indexes directory' do
+      op = build_pull(db, dump_dir)
+      op.pull_indexes
+      expect(File.directory?(File.join(dump_dir, "indexes"))).to be true
+    end
+  end
+
+  # ── store_session ────────────────────────────────────────────────────────────
+
+  describe '#store_session' do
+    it 'writes a .dat session file to the current directory' do
+      op = build_pull(db, dump_dir)
+      session_file = nil
+      begin
+        op.store_session
+        files = Dir.glob("pull_*.dat")
+        session_file = files.first
+        expect(session_file).not_to be_nil
+        data = JSON.parse(File.read(session_file))
+        expect(data).to have_key("database_url")
+      ensure
+        File.delete(session_file) if session_file && File.exist?(session_file)
+      end
+    end
+  end
+
+  # ── pull_partial_data ────────────────────────────────────────────────────────
+
+  describe '#pull_partial_data' do
+    before do
+      op = build_pull(db, dump_dir)
+      op.initialize_dump_directory
+      op.pull_schema
+    end
+
+    it 'returns early when stream_state is empty' do
+      op = build_pull(db, dump_dir)
+      expect { op.pull_partial_data }.not_to raise_error
+    end
+  end
 end

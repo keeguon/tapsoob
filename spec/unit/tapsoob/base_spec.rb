@@ -165,5 +165,56 @@ RSpec.describe Tapsoob::Operation::Base do
       expect { described_class.factory(:unknown, sqlite_memory_url, dump_dir, {}) }
         .to raise_error(RuntimeError, /Unknown Operation Type/)
     end
+
+    it 'returns a resume instance when opts[:resume] is true' do
+      op = build_pull(db, dump_dir)
+      op.initialize_dump_directory
+      op.pull_schema
+
+      hash = op.to_hash
+      resumed = described_class.factory(:pull, sqlite_memory_url, dump_dir,
+        hash.merge(resume: true, klass: "Tapsoob::Operation::Pull", default_chunksize: 1000))
+      expect(resumed).to be_a(Tapsoob::Operation::Pull)
+    end
+  end
+
+  # ── exiting? / setup_signal_trap ─────────────────────────────────────────────
+
+  describe '#exiting?' do
+    it 'returns false initially' do
+      expect(build_base(db, dump_dir).exiting?).to be false
+    end
+  end
+
+  describe '#setup_signal_trap' do
+    it 'registers signal handlers without error' do
+      op = build_base(db, dump_dir)
+      expect { op.setup_signal_trap }.not_to raise_error
+    end
+  end
+
+  # ── can_use_pk_partitioning? ─────────────────────────────────────────────────
+
+  describe '#can_use_pk_partitioning?' do
+    it 'returns true for a table with a single integer PK' do
+      op = build_base(db, dump_dir)
+      expect(op.can_use_pk_partitioning?(:users)).to be true
+    end
+  end
+
+  # ── db / default_chunksize ───────────────────────────────────────────────────
+
+  describe '#default_chunksize' do
+    it 'returns the value from opts' do
+      expect(build_base(db, dump_dir, default_chunksize: 500).default_chunksize).to eq(500)
+    end
+  end
+
+  describe '#table_filter / #exclude_tables' do
+    it 'returns empty arrays by default' do
+      op = build_base(db, dump_dir)
+      expect(op.table_filter).to eq([])
+      expect(op.exclude_tables).to eq([])
+    end
   end
 end
