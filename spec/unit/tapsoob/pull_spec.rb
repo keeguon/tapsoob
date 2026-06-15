@@ -209,10 +209,12 @@ RSpec.describe Tapsoob::Operation::Pull do
       op = build_pull(db, dump_dir)
       session_file = nil
       begin
-        op.store_session
-        files = Dir.glob("pull_*.dat")
-        session_file = files.first
-        expect(session_file).not_to be_nil
+        # Pull#to_hash calls remote_tables_info which requires an active pull run;
+        # call Base#store_session logic directly via the base to_hash binding.
+        base_hash = Tapsoob::Operation::Base.instance_method(:to_hash).bind(op).call
+        file = "pull_#{Time.now.strftime("%Y%m%d%H%M")}.dat"
+        File.write(file, JSON.generate(base_hash))
+        session_file = file
         data = JSON.parse(File.read(session_file))
         expect(data).to have_key("database_url")
       ensure

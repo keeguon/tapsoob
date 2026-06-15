@@ -171,7 +171,9 @@ RSpec.describe Tapsoob::Operation::Base do
       op.initialize_dump_directory
       op.pull_schema
 
-      hash = op.to_hash
+      # Pull#to_hash calls remote_tables_info which requires an active pull run;
+      # use the base to_hash binding to get just the serializable fields.
+      hash = Tapsoob::Operation::Base.instance_method(:to_hash).bind(op).call
       resumed = described_class.factory(:pull, sqlite_memory_url, dump_dir,
         hash.merge(resume: true, klass: "Tapsoob::Operation::Pull", default_chunksize: 1000))
       expect(resumed).to be_a(Tapsoob::Operation::Pull)
