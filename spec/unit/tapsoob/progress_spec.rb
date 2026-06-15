@@ -216,5 +216,74 @@ RSpec.describe Tapsoob::Progress do
         expect(multi.max_title_width).to be >= "A Much Longer Title Here".length
       end
     end
+
+    # ── rendering paths (drive render_active_display / redraw_all) ──────────────
+
+    describe '#update' do
+      it 'does not raise when active and initialized with bars' do
+        out = StringIO.new
+        multi.instance_variable_set(:@out, out)
+        multi.instance_variable_set(:@initialized, true)
+        multi.instance_variable_set(:@total_lines, 4)
+        multi.instance_variable_set(:@last_update, Time.now - 1)
+        bar = multi.create_bar("UpdateTable", 10)
+        expect { multi.update }.not_to raise_error
+      end
+
+      it 'is a no-op when @active is false' do
+        multi.stop
+        expect { multi.update }.not_to raise_error
+      end
+    end
+
+    describe '#finish_bar' do
+      it 'marks the bar as finished without raising' do
+        out = StringIO.new
+        multi.instance_variable_set(:@out, out)
+        multi.instance_variable_set(:@initialized, true)
+        multi.instance_variable_set(:@total_lines, 4)
+        multi.instance_variable_set(:@last_update, Time.now - 1)
+        bar = multi.create_bar("FinishTable", 5)
+        expect { multi.finish_bar(bar) }.not_to raise_error
+        expect(bar.instance_variable_get(:@finished)).to be true
+      end
+    end
+
+    describe '#set_info (with rendering)' do
+      it 'triggers redraw when initialized and a bar exists' do
+        out = StringIO.new
+        multi.instance_variable_set(:@out, out)
+        multi.instance_variable_set(:@initialized, true)
+        multi.instance_variable_set(:@total_lines, 4)
+        multi.instance_variable_set(:@last_update, Time.now - 1)
+        multi.create_bar("InfoTable", 10)
+        expect { multi.set_info("doing things") }.not_to raise_error
+      end
+    end
+
+    describe '#stop (initialized)' do
+      it 'clears terminal lines when previously initialized' do
+        out = StringIO.new
+        multi.instance_variable_set(:@out, out)
+        multi.instance_variable_set(:@initialized, true)
+        multi.instance_variable_set(:@total_lines, 4)
+        multi.stop
+        expect(out.string).to include("\e[")
+      end
+    end
+
+    describe 'render_active_display (via update)' do
+      it 'writes escape sequences to output when bars exist' do
+        out = StringIO.new
+        multi.instance_variable_set(:@out, out)
+        multi.instance_variable_set(:@initialized, true)
+        multi.instance_variable_set(:@total_lines, 4)
+        multi.instance_variable_set(:@last_update, Time.now - 1)
+        multi.instance_variable_set(:@info_message, "some info")
+        multi.create_bar("RenderTable", 10)
+        multi.update
+        expect(out.string).not_to be_empty
+      end
+    end
   end
 end
