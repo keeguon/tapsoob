@@ -71,11 +71,12 @@ module Tapsoob
         log.info "Sending schema"
         Tapsoob::ProgressEvent.schema_start(tables.size)
 
+        schema_opts = { drop: opts[:"drop-tables"] || false }
         progress = opts[:progress] ? Tapsoob::Progress::Bar.new('Schema', tables.size) : nil
         tables.each do |table, count|
           log.debug "Loading '#{table}' schema\n"
           # Reuse existing db connection for better performance
-          Tapsoob::Utils.load_schema(dump_path, db, table)
+          Tapsoob::Utils.load_schema(dump_path, db, table, schema_opts)
           progress.inc(1) if progress
         end
         progress.finish if progress

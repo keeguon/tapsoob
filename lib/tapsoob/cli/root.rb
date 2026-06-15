@@ -47,6 +47,7 @@ module Tapsoob
       option :tables, desc: "Shortcut to filter on a list of tables", type: :array, aliases: "-t"
       option :"exclude-tables", desc: "Shortcut to exclude a list of tables", type: :array, aliases: "-e"
       option :purge, desc: "Purge data in tables prior to performing the import", default: false, type: :boolean, aliases: "-p"
+      option :"drop-tables", desc: "Drop tables before pushing the schema (implies --schema)", default: false, type: :boolean
       option :"skip-duplicates", desc: "Remove duplicates when loading data", default: false, type: :boolean
       option :"discard-identity", desc: "Remove identity when pushing data (may result in creating duplicates)", default: false, type: :boolean
       option :parallel, desc: "Number of parallel workers for table processing (default: 1)", default: 1, type: :numeric, aliases: "-j"
@@ -97,6 +98,7 @@ module Tapsoob
 
           # Push only options
           opts[:purge] = options[:purge] if options.key?(:purge)
+          opts[:"drop-tables"] = options[:"drop-tables"] if options.key?(:"drop-tables")
           opts[:"skip-duplicates"] = options[:"skip-duplicates"] if options.key?(:"skip-duplicates")
           opts[:"discard-identity"] = options[:"discard-identity"] if options.key?(:"discard-identity")
 
