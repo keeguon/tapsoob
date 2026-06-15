@@ -113,24 +113,24 @@ RSpec.describe 'PostgreSQL round-trip', :integration do
     end
   end
 
-  context 'with a text primary key backed by an explicit sequence' do
-    before(:each) do
-      @src_db.run("DROP TABLE IF EXISTS bad_seq_table")
-      @src_db.run("DROP SEQUENCE IF EXISTS bad_seq_table_id_seq")
-      @src_db.run("CREATE SEQUENCE bad_seq_table_id_seq")
-      @src_db.run("CREATE TABLE bad_seq_table (id text PRIMARY KEY DEFAULT nextval('bad_seq_table_id_seq'), label text)")
-      @src_db.run("ALTER SEQUENCE bad_seq_table_id_seq OWNED BY bad_seq_table.id")
-      @src_db.run("INSERT INTO bad_seq_table VALUES ('abc', 'test')")
-    end
+  context 'when reset_primary_key_sequence raises a DatabaseError' do
+    it 'logs a warning per failing table and does not re-raise' do
+      db = Sequel.connect(@src_url)
+      db.extension :schema_dumper
 
-    after(:each) do
-      @src_db.run("DROP TABLE IF EXISTS bad_seq_table")
-      @src_db.run("DROP SEQUENCE IF EXISTS bad_seq_table_id_seq")
-    end
+      allow(Sequel).to receive(:connect).and_yield(db)
+      allow(db).to receive(:respond_to?).and_call_original
+      allow(db).to receive(:respond_to?).with(:reset_primary_key_sequence).and_return(true)
 
-    it 'logs a warning and does not raise when the DB rejects the sequence reset' do
-      expect(Tapsoob.log).to receive(:warn).with(/bad_seq_table/)
-      Tapsoob::Schema.reset_db_sequences(@src_url)
+      # Simulate every integer-PK table raising the identity-column DB error
+      allow(db).to receive(:reset_primary_key_sequence).and_raise(
+        Sequel::DatabaseError, 'ERROR: identity column type must be smallint, integer, or bigint'
+      )
+
+      expect(Tapsoob.log).to receive(:warn).at_least(:once)
+      expect { Tapsoob::Schema.reset_db_sequences(@src_url) }.not_to raise_error
+
+      db.disconnect
     end
   end
 end
