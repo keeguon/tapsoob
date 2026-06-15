@@ -186,9 +186,9 @@ RSpec.describe Tapsoob::Operation::Push do
     it 'inserts all rows routing through push_data_from_file_parallel' do
       op = build_push(db_url, dump_dir)
       op.instance_variable_set(:@db, db)
-      # Use 1 worker — with chunksize=1000 and 5 rows the file has 1 line,
+      # Use 1 worker for all tables — with chunksize=1000 the files have 1 line each,
       # so requesting 2 workers would leave ranges[1] nil and crash FilePartition.
-      allow(op).to receive(:table_parallel_workers).with("users", anything).and_return(1)
+      allow(op).to receive(:table_parallel_workers).and_return(1)
       op.push_data_serial
       expect(db[:users].count).to eq(5)
     end
