@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'tapsoob/schema'
 
 # PostgreSQL integration suite.
 # In CI: supplied by the postgres service container via POSTGRES_* env vars.
@@ -92,6 +93,24 @@ RSpec.describe 'PostgreSQL round-trip', :integration do
       pull(src_url, idx_dir, indexes_first: true)
       expect { push(dst_url, idx_dir, indexes_first: true) }.not_to raise_error
       expect_same_counts(src_db, dst_db)
+    end
+  end
+
+  context 'with a varchar primary key table' do
+    before(:each) do
+      @src_db.run("DROP TABLE IF EXISTS varchar_pk_table")
+      @src_db.run("CREATE TABLE varchar_pk_table (id varchar(36) PRIMARY KEY, label text)")
+      @src_db.run("INSERT INTO varchar_pk_table VALUES ('abc-123', 'test')")
+    end
+
+    after(:each) do
+      @src_db.run("DROP TABLE IF EXISTS varchar_pk_table")
+    end
+
+    it 'reset_db_sequences does not raise on a varchar primary key' do
+      expect {
+        Tapsoob::Schema.reset_db_sequences(@src_url)
+      }.not_to raise_error
     end
   end
 end
