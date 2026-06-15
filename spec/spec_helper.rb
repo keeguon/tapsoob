@@ -45,6 +45,7 @@ RSpec.configure do |config|
   # Integration tests require a real DB — skip unless env vars are set.
   config.filter_run_excluding :integration unless ENV['INTEGRATION_TESTS'] || ENV['SRC_DATABASE_URL']
 
-  config.include DbHelpers,       :integration
-  config.include RoundTripHelper, :integration
+  config.include DbHelpers,        :integration
+  config.include RoundTripHelper,  :integration
+  config.include OperationHelpers
 end
