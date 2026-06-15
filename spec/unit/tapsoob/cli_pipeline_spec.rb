@@ -157,6 +157,8 @@ RSpec.describe "CLI pipelines" do
   describe "data pull → push pipeline" do
     before do
       %w[data schemas indexes].each { |d| FileUtils.mkdir_p(File.join(dump_dir, d)) }
+      ordered = src_db.send(:sort_dumped_tables, src_db.tables, {}).map(&:to_s)
+      File.write(File.join(dump_dir, "table_order.txt"), ordered.join("\n") + "\n")
     end
 
     it 'pulls data into dump_dir and pushes it to destination' do
@@ -213,6 +215,8 @@ RSpec.describe "CLI pipelines" do
   describe "data push --purge" do
     before do
       %w[data schemas indexes].each { |d| FileUtils.mkdir_p(File.join(dump_dir, d)) }
+      ordered = src_db.send(:sort_dumped_tables, src_db.tables, {}).map(&:to_s)
+      File.write(File.join(dump_dir, "table_order.txt"), ordered.join("\n") + "\n")
     end
 
     it 'truncates destination tables before inserting' do
