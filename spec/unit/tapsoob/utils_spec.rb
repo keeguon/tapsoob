@@ -220,6 +220,70 @@ RSpec.describe Tapsoob::Utils do
     end
   end
 
+  # ── windows? / bin ───────────────────────────────────────────────────────────
+
+  describe '.windows? / .bin' do
+    it 'returns a boolean for windows?' do
+      expect([true, false]).to include(described_class.windows?)
+    end
+
+    it 'returns the command unchanged on non-Windows' do
+      allow(described_class).to receive(:windows?).and_return(false)
+      expect(described_class.bin("mytool")).to eq("mytool")
+    end
+
+    it 'appends .cmd on Windows' do
+      allow(described_class).to receive(:windows?).and_return(true)
+      expect(described_class.bin("mytool")).to eq("mytool.cmd")
+    end
+  end
+
+  # ── incorrect_blobs ──────────────────────────────────────────────────────────
+
+  describe '.incorrect_blobs' do
+    let(:db) do
+      d = connect_sqlite
+      d.create_table(:blob_test) { primary_key :id; File :data; String :name }
+      d
+    end
+    after { db.disconnect }
+
+    it 'returns blob-typed column names' do
+      expect(described_class.incorrect_blobs(db, :blob_test)).to include(:data)
+    end
+
+    it 'does not include non-blob columns' do
+      expect(described_class.incorrect_blobs(db, :blob_test)).not_to include(:name)
+    end
+  end
+
+  # ── encode_blobs ASCII-8BIT branch ──────────────────────────────────────────
+
+  describe '.encode_blobs (ASCII-8BIT branch)' do
+    it 'encodes raw binary strings that are not Sequel::SQL::Blob' do
+      raw = "binary".force_encoding(Encoding::ASCII_8BIT)
+      row = { data: raw }
+      described_class.encode_blobs(row, [:data])
+      expect(row[:data]).to eq(described_class.base64encode(raw))
+    end
+  end
+
+  # ── load_schema with a DB object ─────────────────────────────────────────────
+
+  describe '.load_schema' do
+    let(:dir) { Dir.mktmpdir }
+    after { FileUtils.rm_rf(dir) }
+
+    it 'accepts a Sequel::Database object directly' do
+      db = connect_sqlite
+      FileUtils.mkdir_p(File.join(dir, 'schemas'))
+      schema_content = "Sequel.migration { change { create_table(:load_test) { primary_key :id } } }"
+      File.write(File.join(dir, 'schemas', 'load_test.rb'), schema_content)
+      expect { described_class.load_schema(dir, db, :load_test) }.not_to raise_error
+      db.disconnect
+    end
+  end
+
   # ── export_rows / export_schema / export_indexes (filesystem) ────────────────
 
   describe 'filesystem export helpers' do

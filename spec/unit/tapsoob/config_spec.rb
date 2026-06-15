@@ -11,6 +11,25 @@ RSpec.describe Tapsoob::Config do
       described_class.database_url = sqlite_memory_url
       expect { described_class.verify_database_url }.not_to raise_error
     end
+
+    it 'prints an error and exits on an invalid URL' do
+      expect {
+        expect { described_class.verify_database_url("sqlite:///nonexistent/bad/path.db") }.to raise_error(SystemExit)
+      }.to output(/Failed to connect/).to_stdout
+    end
+  end
+end
+
+RSpec.describe Tapsoob do
+  describe '.exiting= / #exiting?' do
+    it 'sets and reads the exiting flag' do
+      obj = Object.new
+      obj.extend(Tapsoob)
+      Tapsoob.exiting = true
+      expect(obj.exiting?).to be true
+      Tapsoob.exiting = false
+      expect(obj.exiting?).to be false
+    end
   end
 end
 
