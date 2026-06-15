@@ -112,12 +112,14 @@ END_MIG
         if options[:drop]
           # Start special hack for MySQL
           db.run("SET foreign_key_checks = 0") if [:mysql, :mysql2].include?(db.adapter_scheme)
+          db.run("PRAGMA foreign_keys = OFF") if db.adapter_scheme == :sqlite
 
           # Run down migration
           klass.apply(db, :down)
 
           # End special hack for MySQL
           db.run("SET foreign_key_checks = 1") if [:mysql, :mysql2].include?(db.adapter_scheme)
+          db.run("PRAGMA foreign_keys = ON") if db.adapter_scheme == :sqlite
         end
         klass.apply(db, :up)
       else
@@ -127,12 +129,14 @@ END_MIG
           if options[:drop]
             # Start special hack for MySQL
             db.run("SET foreign_key_checks = 0") if [:mysql, :mysql2].include?(db.adapter_scheme)
+            db.run("PRAGMA foreign_keys = OFF") if db.adapter_scheme == :sqlite
 
             # Run down migration
             klass.apply(db, :down)
 
             # End special hack for MySQL
             db.run("SET foreign_key_checks = 1") if [:mysql, :mysql2].include?(db.adapter_scheme)
+            db.run("PRAGMA foreign_keys = ON") if db.adapter_scheme == :sqlite
           end
           klass.apply(db, :up)
         end
