@@ -261,36 +261,75 @@ RSpec.describe Tapsoob::Operation::Pull do
   end
 
   # ── pull_data_from_table_parallel ────────────────────────────────────────────
+  #
+  # These tests use file-backed SQLite because pull_data_from_table_parallel
+  # spawns threads that each open a new Sequel connection to @database_url.
+  # On JRuby/JDBC, each new connection to an in-memory SQLite URL creates an
+  # isolated empty database — the worker threads cannot see the seeded tables.
+  # File-backed SQLite is shared across all connections on both MRI and JRuby.
 
   describe '#pull_data_from_table_parallel' do
-    before do
-      op = build_pull(db, dump_dir)
-      op.initialize_dump_directory
-      op.pull_schema
-    end
-
     it 'writes data using PK-based partitioning (table with integer PK)' do
-      op = build_pull(db, dump_dir)
-      expect { op.pull_data_from_table_parallel(:users, 5, 2) }.not_to raise_error
-      data_file = File.join(dump_dir, "data", "users.json")
-      expect(File.exist?(data_file)).to be true
+      db_path = File.join(Dir.tmpdir, "tapsoob_pull_parallel_pk_#{Process.pid}.db")
+      db_url  = DbHelpers.adapt_url("sqlite://#{db_path}")
+      file_db = Sequel.connect(db_url)
+      file_db.extension :schema_dumper
+      file_db.create_table(:users)   { primary_key :id; String :name }
+      file_db.create_table(:widgets) { primary_key :id; Integer :qty }
+      5.times { |i| file_db[:users].insert(name: "user_#{i}") }
+      3.times { |i| file_db[:widgets].insert(qty: i * 10) }
+      begin
+        op = Tapsoob::Operation::Pull.new(db_url, dump_dir, OperationHelpers::UNIT_OPTS)
+        op.initialize_dump_directory
+        op.pull_schema
+        expect { op.pull_data_from_table_parallel(:users, 5, 2) }.not_to raise_error
+        expect(File.exist?(File.join(dump_dir, "data", "users.json"))).to be true
+      ensure
+        file_db.disconnect rescue nil
+        File.delete(db_path) rescue nil
+      end
     end
 
     it 'handles interleaved chunking for tables without integer PK' do
-      # Create a table without integer PK
-      db.create_table(:nopk) { String :key, size: 50; Integer :val }
-      3.times { |i| db[:nopk].insert(key: "k#{i}", val: i) }
-
-      op = build_pull(db, dump_dir)
-      expect { op.pull_data_from_table_parallel(:nopk, 3, 2) }.not_to raise_error
+      db_path = File.join(Dir.tmpdir, "tapsoob_pull_parallel_nopk_#{Process.pid}.db")
+      db_url  = DbHelpers.adapt_url("sqlite://#{db_path}")
+      file_db = Sequel.connect(db_url)
+      file_db.extension :schema_dumper
+      file_db.create_table(:users) { primary_key :id; String :name }
+      file_db.create_table(:nopk)  { String :key, size: 50; Integer :val }
+      3.times { |i| file_db[:nopk].insert(key: "k#{i}", val: i) }
+      begin
+        op = Tapsoob::Operation::Pull.new(db_url, dump_dir, OperationHelpers::UNIT_OPTS)
+        op.initialize_dump_directory
+        op.pull_schema
+        expect { op.pull_data_from_table_parallel(:nopk, 3, 2) }.not_to raise_error
+      ensure
+        file_db.disconnect rescue nil
+        File.delete(db_path) rescue nil
+      end
     end
 
     it 'writes data files when called via pull_data_serial with forced parallel workers' do
-      op = build_pull(db, dump_dir, no_split: false)
-      allow(op).to receive(:table_parallel_workers).with("users", anything).and_return(2)
-      allow(op).to receive(:table_parallel_workers).with("widgets", anything).and_return(2)
-      op.pull_data_serial
-      expect(File.exist?(File.join(dump_dir, "data", "users.json"))).to be true
+      db_path = File.join(Dir.tmpdir, "tapsoob_pull_serial_par_#{Process.pid}.db")
+      db_url  = DbHelpers.adapt_url("sqlite://#{db_path}")
+      file_db = Sequel.connect(db_url)
+      file_db.extension :schema_dumper
+      file_db.create_table(:users)   { primary_key :id; String :name }
+      file_db.create_table(:widgets) { primary_key :id; Integer :qty }
+      5.times { |i| file_db[:users].insert(name: "user_#{i}") }
+      3.times { |i| file_db[:widgets].insert(qty: i * 10) }
+      begin
+        op = Tapsoob::Operation::Pull.new(db_url, dump_dir, OperationHelpers::UNIT_OPTS.merge(no_split: false))
+        op.initialize_dump_directory
+        op.pull_schema
+        allow(op).to receive(:table_parallel_workers).with("users", anything).and_return(2)
+        allow(op).to receive(:table_parallel_workers).with("widgets", anything).and_return(2)
+        op.pull_data_serial
+        expect(File.exist?(File.join(dump_dir, "data", "users.json"))).to be true
+      ensure
+        file_db.disconnect rescue nil
+        File.delete(db_path) rescue nil
+      end
     end
   end
 end
