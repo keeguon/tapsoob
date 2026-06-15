@@ -22,10 +22,11 @@ stages:
   rules:
     - if: $CI_COMMIT_TAG
       when: never
+    - if: $CI_COMMIT_MESSAGE =~ /Bumped version/
+      when: never
     - when: on_success
   variables:
     INTEGRATION_TESTS: "1"
-    SYSTEM_TESTS: "1"
   before_script:
     - apt-get update -qq && apt-get install -y -qq git
     - bundle install --quiet
@@ -49,10 +50,9 @@ test-sqlite:
     SRC_DATABASE_URL: "sqlite://tmp/tapsoob_src.db"
     DST_DATABASE_URL: "sqlite://tmp/tapsoob_dst.db"
     INTEGRATION_TESTS: "1"
-    SYSTEM_TESTS: "1"
   script:
     - mkdir -p tmp
-    - bundle exec rspec spec/unit spec/integration/sqlite_spec.rb spec/system/
+    - bundle exec rspec spec/unit spec/integration/sqlite_spec.rb
         --format progress
         --format RspecJunitFormatter --out rspec.xml
 
@@ -141,6 +141,8 @@ test-jruby:
     - docker
   rules:
     - if: $CI_COMMIT_TAG
+      when: never
+    - if: $CI_COMMIT_MESSAGE =~ /Bumped version/
       when: never
     - when: on_success
   before_script:

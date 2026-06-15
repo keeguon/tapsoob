@@ -107,10 +107,30 @@ RSpec.describe 'PostgreSQL round-trip', :integration do
       @src_db.run("DROP TABLE IF EXISTS varchar_pk_table")
     end
 
-    it 'reset_db_sequences does not raise on a varchar primary key' do
-      expect {
-        Tapsoob::Schema.reset_db_sequences(@src_url)
-      }.not_to raise_error
+    it 'skips reset without logging a warning (no sequence attached to varchar PK)' do
+      expect(Tapsoob.log).not_to receive(:warn)
+      Tapsoob::Schema.reset_db_sequences(@src_url)
+    end
+  end
+
+  context 'with a text primary key backed by an explicit sequence' do
+    before(:each) do
+      @src_db.run("DROP TABLE IF EXISTS bad_seq_table")
+      @src_db.run("DROP SEQUENCE IF EXISTS bad_seq_table_id_seq")
+      @src_db.run("CREATE SEQUENCE bad_seq_table_id_seq")
+      @src_db.run("CREATE TABLE bad_seq_table (id text PRIMARY KEY DEFAULT nextval('bad_seq_table_id_seq'), label text)")
+      @src_db.run("ALTER SEQUENCE bad_seq_table_id_seq OWNED BY bad_seq_table.id")
+      @src_db.run("INSERT INTO bad_seq_table VALUES ('abc', 'test')")
+    end
+
+    after(:each) do
+      @src_db.run("DROP TABLE IF EXISTS bad_seq_table")
+      @src_db.run("DROP SEQUENCE IF EXISTS bad_seq_table_id_seq")
+    end
+
+    it 'logs a warning and does not raise when the DB rejects the sequence reset' do
+      expect(Tapsoob.log).to receive(:warn).with(/bad_seq_table/)
+      Tapsoob::Schema.reset_db_sequences(@src_url)
     end
   end
 end

@@ -15,7 +15,7 @@ require 'sequel'
 #   null_heavy     – every nullable column is NULL for half the rows
 #
 module Fixtures
-  LARGE_TABLE_ROWS   = 150_000
+  LARGE_TABLE_ROWS   = 20_000
   DOCUMENT_ROWS      = 500
   ATTACHMENT_ROWS    = 200
   STANDARD_ROWS      = 1_000

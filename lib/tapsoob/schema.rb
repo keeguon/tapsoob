@@ -4,6 +4,7 @@ require 'sequel/extensions/schema_dumper'
 require 'sequel/extensions/migration'
 require 'erb'
 require 'json'
+require 'tapsoob/log'
 
 module Tapsoob
   module Schema
@@ -167,6 +168,8 @@ END_MIG
         pk_type = db.schema(table).find { |col, _| col.to_s == pk.to_s }&.last&.dig(:db_type)
         next unless pk_type&.match?(/int|serial/i)
         db.reset_primary_key_sequence(table)
+      rescue Sequel::DatabaseError => e
+        Tapsoob.log.warn "Could not reset sequence for table '#{table}': #{e.message.lines.first.chomp}"
       end
     end
   end

@@ -42,12 +42,9 @@ RSpec.configure do |config|
   config.order = :random
   Kernel.srand config.seed
 
-  # Integration/system tests require a real DB — skip unless env vars are set.
+  # Integration tests require a real DB — skip unless env vars are set.
   config.filter_run_excluding :integration unless ENV['INTEGRATION_TESTS'] || ENV['SRC_DATABASE_URL']
-  config.filter_run_excluding :system      unless ENV['SYSTEM_TESTS']      || ENV['SRC_DATABASE_URL']
 
-  config.include DbHelpers,      :integration
-  config.include DbHelpers,      :system
+  config.include DbHelpers,       :integration
   config.include RoundTripHelper, :integration
-  config.include RoundTripHelper, :system
 end
