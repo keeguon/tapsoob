@@ -245,7 +245,7 @@ RSpec.describe Tapsoob::Progress do
         multi.instance_variable_set(:@last_update, Time.now - 1)
         bar = multi.create_bar("FinishTable", 5)
         expect { multi.finish_bar(bar) }.not_to raise_error
-        expect(bar.instance_variable_get(:@finished)).to be true
+        expect(bar.instance_variable_get(:@finished_p)).to be true
       end
     end
 

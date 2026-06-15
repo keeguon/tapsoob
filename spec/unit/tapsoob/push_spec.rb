@@ -163,6 +163,8 @@ RSpec.describe Tapsoob::Operation::Push do
     end
 
     it 'marks tables as completed' do
+      db[:users].delete
+      db[:widgets].delete
       op = build_push
       op.instance_variable_set(:@db, db)
       op.push_data_serial
