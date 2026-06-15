@@ -1,7 +1,5 @@
 require 'spec_helper'
-require 'tapsoob/cli/root'
-require 'tapsoob/cli/schema'
-require 'tapsoob/cli/data_stream'
+require 'tapsoob/cli'
 
 # CLI pipeline specs — invoke Thor commands the same way clients do in rake tasks:
 #
