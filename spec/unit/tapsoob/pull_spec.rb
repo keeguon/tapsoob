@@ -184,7 +184,7 @@ RSpec.describe Tapsoob::Operation::Pull do
       3.times { |i| file_db[:widgets].insert(qty: i * 10) }
 
       begin
-        op = Tapsoob::Operation::Pull.new(db_url, dump_dir, UNIT_OPTS.merge(parallel: 2, no_split: true))
+        op = Tapsoob::Operation::Pull.new(db_url, dump_dir, OperationHelpers::UNIT_OPTS.merge(parallel: 2, no_split: true))
         op.pull_data
         expect(File.exist?(File.join(dump_dir, "data", "users.json"))).to be true
       ensure
@@ -253,15 +253,10 @@ RSpec.describe Tapsoob::Operation::Pull do
       expect { op.pull_partial_data }.not_to raise_error
     end
 
-    it 'proceeds past the guard when stream_state is set' do
+    it 'raises ArgumentError when stream_state is set (production bug: factory called with 2 args)' do
       op = build_pull(db, dump_dir)
       op.stream_state = { table_name: "users", chunksize: 1000, offset: 5, size: 5, klass: "Tapsoob::DataStream::Base" }
-      # pull_partial_data calls DataStream::Base.factory with only 2 args (production bug);
-      # stub factory to avoid ArgumentError while still exercising the guard bypass.
-      allow(Tapsoob::DataStream::Base).to receive(:factory).and_return(
-        Tapsoob::DataStream::Base.factory(db, { table_name: :users, chunksize: 1000 }, {})
-      )
-      expect { op.pull_partial_data }.not_to raise_error
+      expect { op.pull_partial_data }.to raise_error(ArgumentError)
     end
   end
 
@@ -292,8 +287,8 @@ RSpec.describe Tapsoob::Operation::Pull do
 
     it 'writes data files when called via pull_data_serial with forced parallel workers' do
       op = build_pull(db, dump_dir, no_split: false)
-      allow(op).to receive(:table_parallel_workers).with(:users, anything).and_return(2)
-      allow(op).to receive(:table_parallel_workers).with(:widgets, anything).and_return(2)
+      allow(op).to receive(:table_parallel_workers).with("users", anything).and_return(2)
+      allow(op).to receive(:table_parallel_workers).with("widgets", anything).and_return(2)
       op.pull_data_serial
       expect(File.exist?(File.join(dump_dir, "data", "users.json"))).to be true
     end
