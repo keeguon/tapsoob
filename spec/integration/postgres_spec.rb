@@ -115,22 +115,13 @@ RSpec.describe 'PostgreSQL round-trip', :integration do
 
   context 'when reset_primary_key_sequence raises a DatabaseError' do
     it 'logs a warning per failing table and does not re-raise' do
-      db = Sequel.connect(@src_url)
-      db.extension :schema_dumper
-
-      allow(Sequel).to receive(:connect).and_yield(db)
-      allow(db).to receive(:respond_to?).and_call_original
-      allow(db).to receive(:respond_to?).with(:reset_primary_key_sequence).and_return(true)
-
-      # Simulate every integer-PK table raising the identity-column DB error
-      allow(db).to receive(:reset_primary_key_sequence).and_raise(
+      allow(Sequel).to receive(:connect).and_yield(@src_db)
+      allow(@src_db).to receive(:reset_primary_key_sequence).and_raise(
         Sequel::DatabaseError, 'ERROR: identity column type must be smallint, integer, or bigint'
       )
 
       expect(Tapsoob.log).to receive(:warn).at_least(:once)
       expect { Tapsoob::Schema.reset_db_sequences(@src_url) }.not_to raise_error
-
-      db.disconnect
     end
   end
 end
